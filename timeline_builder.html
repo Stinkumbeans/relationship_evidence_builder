@@ -9,9 +9,9 @@
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap');
 :root {
-  --bg:#F7F5F0;--card:#FFFFFF;--border:#E2DDD5;--bd:#C8C0B4;
-  --gold:#A07830;--gl:#C8A96E;--gbg:#FDF8F0;
-  --text:#1A1814;--mut:#7A7268;--fnt:#B8B0A4;
+  --bg:#F4F2EE;--card:#FFFFFF;--border:#E0DBD3;--bd:#C4BBB0;
+  --gold:#8C6820;--gl:#B8975A;--gbg:#FDF8F0;
+  --text:#18160F;--mut:#5C5650;--fnt:#A8A098;
   --grn:#2E7D5E;--gbg2:#F0FAF5;--red:#B94C39;--redbg:#FDF5F3;
   --fl:#4A7FA5;--flbg:#EEF4FA;
   --ac:#C5503A;--acbg:#FDF1EF;
@@ -20,7 +20,8 @@
 }
 *{box-sizing:border-box;margin:0;padding:0;}
 select{font-size:13px;}
-body{background:var(--bg);font-family:'Source Sans 3',Georgia,sans-serif;color:var(--text);min-height:100vh;}
+.field select{font-size:13px;padding:8px 10px;border:1px solid var(--bd);border-radius:4px;background:#fff;color:var(--text);font-family:inherit;width:100%;height:38px;-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A7268' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;cursor:pointer;}
+body{background:var(--bg);font-family:'Source Sans 3',Georgia,sans-serif;color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;}
 .hdr{background:var(--text);padding:36px 28px 28px;position:relative;}
 .hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gl),transparent);}
 .hdr-in{max-width:900px;margin:0 auto;}
@@ -46,7 +47,9 @@ h1{font-family:'Playfair Display',serif;font-size:clamp(22px,4vw,32px);font-weig
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
 .field{display:flex;flex-direction:column;gap:5px;}
-.field label{font-size:11px;color:var(--mut);font-weight:500;letter-spacing:.3px;}
+.field label{font-size:12px;color:var(--mut);font-weight:600;letter-spacing:.2px;}
+.field input,.field select,.field textarea{font-size:13px;padding:8px 10px;border:1px solid var(--bd);border-radius:4px;background:#fff;color:var(--text);font-family:inherit;width:100%;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 2px rgba(140,104,32,.1);}
 .field .hint{font-size:10px;color:var(--fnt);margin-top:2px;font-style:italic;}
 input[type=text],input[type=date],input[type=number],select,textarea{
   background:var(--bg);border:1px solid var(--bd);border-radius:4px;
@@ -200,7 +203,7 @@ textarea.tall{min-height:130px;}
   <div class="card">
     <div class="card-title">The Couple</div>
     <div class="grid2" style="margin-bottom:12px">
-      <div class="field"><label>Sponsor's full name (UK-based partner)</label><input type="text" id="sponsor_name" placeholder="e.g. Jane Smith" oninput="liveCheck()"></div>
+      <div class="field"><label>Sponsor's full name</label><input type="text" id="sponsor_name" placeholder="e.g. Jane Smith" oninput="liveCheck()"></div>
       <div class="field"><label>Applicant's full name (applying for visa)</label><input type="text" id="applicant_name" placeholder="e.g. John Doe" oninput="liveCheck()"></div>
     </div>
     <div class="grid3">
@@ -248,22 +251,7 @@ textarea.tall{min-height:130px;}
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-title">Financial Exemption (Your Situation)</div>
-    <div class="field" style="margin-bottom:12px">
-      <label>Why the £29,000 threshold does not apply</label>
-      <select id="fin_exemption">
-        <option value="disability">Sponsor receives disability benefit (PIP / DLA / AA / Carer's Allowance)</option>
-        <option value="other">Other exemption</option>
-        <option value="none">No exemption — standard threshold applies</option>
-      </select>
-    </div>
-    <div class="field">
-      <label>Adequate maintenance summary (weekly income vs threshold)</label>
-      <input type="text" id="fin_summary" placeholder="e.g. Combined weekly income £210 — threshold £144.65 — surplus £65.35">
-      <span class="hint">Use the Adequate Maintenance Calculator to find your exact figures.</span>
-    </div>
-  </div>
+
 </div>
 
 <!-- ══ TAB 2: PERSONAL STATEMENTS ════════════════════════════ -->
@@ -274,7 +262,7 @@ textarea.tall{min-height:130px;}
 
   <!-- SPONSOR STATEMENT -->
   <div class="card">
-    <div class="card-title">Sponsor's Statement <span style="color:var(--mut);font-weight:400;letter-spacing:0">(UK-based partner)</span></div>
+    <div class="card-title">Sponsor's Statement</div>
     <div class="card-subtitle">Answer each section honestly and in your own words. Aim for 2–4 sentences per section. Caseworkers look for specific detail — dates, places, names — not generic declarations.</div>
 
     <div class="field" style="margin-bottom:12px">
@@ -1025,7 +1013,7 @@ async function generatePDF(){
   const btn=document.getElementById('generateBtn');
   btn.disabled=true;btn.innerHTML='⏳ Generating...';
   try{
-    const r=await fetch('http://localhost:5678/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    const r=await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
     if(!r.ok)throw new Error(await r.text());
     const blob=await r.blob();
     const url=URL.createObjectURL(blob);

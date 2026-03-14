@@ -13,7 +13,8 @@ from reportlab.lib import colors
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
-    HRFlowable, KeepTogether, PageBreak, Image as RLImage
+    HRFlowable, KeepTogether, PageBreak, Image as RLImage,
+    AnchorFlowable
 )
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
@@ -94,20 +95,32 @@ def b64_to_bytes(data_url):
         data_url = data_url.split(',', 1)[1]
     return base64.b64decode(data_url)
 
+def fix_orientation(pil_img):
+    """Rotate image according to EXIF orientation tag so it prints the right way up."""
+    try:
+        exif = pil_img._getexif()
+        if exif:
+            orientation = exif.get(274)  # 274 = Orientation tag
+            rotations = {3: 180, 6: 270, 8: 90}
+            if orientation in rotations:
+                pil_img = pil_img.rotate(rotations[orientation], expand=True)
+    except Exception:
+        pass  # No EXIF data or unreadable — just use image as-is
+    return pil_img
+
 def image_thumbnail(b64_data_url, max_w_mm=55, max_h_mm=45):
     """Return a ReportLab Image flowable thumbnail from a base64 image."""
     try:
         raw = b64_to_bytes(b64_data_url)
         buf = io.BytesIO(raw)
         pil = PILImage.open(buf)
-        # Convert to RGB to handle RGBA/palette PNGs
+        pil = fix_orientation(pil)
         if pil.mode not in ('RGB', 'L'):
             pil = pil.convert('RGB')
         w, h = pil.size
         max_w = max_w_mm * mm
         max_h = max_h_mm * mm
         scale = min(max_w / w, max_h / h)
-        # Save as JPEG for ReportLab compatibility
         img_buf = io.BytesIO()
         pil.save(img_buf, format='JPEG', quality=85)
         img_buf.seek(0)
@@ -122,7 +135,7 @@ def image_full(b64_data_url, page_w_mm=160):
         raw = b64_to_bytes(b64_data_url)
         buf = io.BytesIO(raw)
         pil = PILImage.open(buf)
-        # Convert to RGB to handle RGBA/palette PNGs
+        pil = fix_orientation(pil)
         if pil.mode not in ('RGB', 'L'):
             pil = pil.convert('RGB')
         w, h = pil.size
@@ -192,8 +205,8 @@ def S():
       "entry_det":  mk_style("edt",fontSize=8, textColor=MUTED, leading=11),
       "entry_note": mk_style("en",fontName="Helvetica-Oblique",fontSize=8.5,textColor=MUTED,leading=12),
       "year_lbl":   mk_style("yl",fontName="Times-Bold",   fontSize=16, textColor=WHITE,  leading=20),
-      "stmt_q":     mk_style("sq",fontName="Helvetica-Bold",fontSize=9, textColor=GOLD,   leading=13, spaceBefore=8),
-      "stmt_a":     mk_style("sa",fontName="Helvetica",    fontSize=9,  textColor=TEXT,   leading=14, leftIndent=10, spaceAfter=4),
+      "stmt_q":     mk_style("sq",fontName="Helvetica-Bold",fontSize=8.5,textColor=GOLD,   leading=12, spaceBefore=6),
+      "stmt_a":     mk_style("sa",fontName="Helvetica",    fontSize=9,  textColor=TEXT,   leading=13, leftIndent=8, spaceAfter=2),
       "disclaimer": mk_style("d", fontName="Helvetica-Oblique",fontSize=7.5,textColor=FAINT,leading=11,spaceBefore=10),
       "wk_ok":      mk_style("wo",fontName="Helvetica-Bold",fontSize=9, textColor=GREEN,  leading=13),
       "wk_warn":    mk_style("ww",fontName="Helvetica-Bold",fontSize=9, textColor=RED,    leading=13),
@@ -512,12 +525,12 @@ def build_pdf(data):
         story.append(Paragraph("PREVIOUS RELATIONSHIPS", st["stmt_q"]))
         story.append(Paragraph(sp_prev, st["stmt_a"]))
 
-    story.append(Spacer(1,16))
+    story.append(Spacer(1,8))
     story.append(hr())
     decl_s = Table([
-        [Paragraph(f"I declare that the above is true and accurate.  Signed: ________________________  Date: __________________", mk_style("ds",fontSize=9,textColor=TEXT,leading=13))],
+        [Paragraph(f"Statement of truth — I confirm the above information is accurate to the best of my knowledge.  Signed: ________________________  Date: __________________", mk_style("ds",fontSize=8.5,textColor=MUTED,leading=13))],
     ], colWidths=[W])
-    decl_s.setStyle(TableStyle([("BOX",(0,0),(-1,-1),0.5,BORDER),("LEFTPADDING",(0,0),(-1,-1),12),("TOPPADDING",(0,0),(-1,-1),8),("BOTTOMPADDING",(0,0),(-1,-1),8),("BACKGROUND",(0,0),(-1,-1),LT_BG)]))
+    decl_s.setStyle(TableStyle([("BOX",(0,0),(-1,-1),0.5,BORDER),("LEFTPADDING",(0,0),(-1,-1),12),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),("BACKGROUND",(0,0),(-1,-1),LT_BG)]))
     story.append(decl_s)
 
     # ── PAGE 3: APPLICANT STATEMENT ───────────────────────────
@@ -570,10 +583,10 @@ def build_pdf(data):
         story.append(Paragraph("The witness's signed letter should be attached separately as a referenced document.",
             mk_style("wn",fontName="Helvetica-Oblique",fontSize=8,textColor=MUTED,leading=12,spaceBefore=6)))
 
-    story.append(Spacer(1,16))
+    story.append(Spacer(1,8))
     story.append(hr())
-    decl_a = Table([[Paragraph(f"I declare that the above is true and accurate.  Signed: ________________________  Date: __________________",mk_style("da",fontSize=9,textColor=TEXT,leading=13))]],colWidths=[W])
-    decl_a.setStyle(TableStyle([("BOX",(0,0),(-1,-1),0.5,BORDER),("LEFTPADDING",(0,0),(-1,-1),12),("TOPPADDING",(0,0),(-1,-1),8),("BOTTOMPADDING",(0,0),(-1,-1),8),("BACKGROUND",(0,0),(-1,-1),LT_BG)]))
+    decl_a = Table([[Paragraph(f"Statement of truth — I confirm the above information is accurate to the best of my knowledge.  Signed: ________________________  Date: __________________",mk_style("da",fontSize=8.5,textColor=MUTED,leading=13))]],colWidths=[W])
+    decl_a.setStyle(TableStyle([("BOX",(0,0),(-1,-1),0.5,BORDER),("LEFTPADDING",(0,0),(-1,-1),12),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),("BACKGROUND",(0,0),(-1,-1),LT_BG)]))
     story.append(decl_a)
 
     # ── PAGE 4: WEAKNESS CHECK ────────────────────────────────
@@ -607,24 +620,33 @@ def build_pdf(data):
         msg     = c["ok_msg"] if is_ok else c["warn_msg"]
 
         inner = [
-            [Paragraph(f"{icon}  {c['label']}",mk_style(f"wl{i}",fontName="Helvetica-Bold",fontSize=9,textColor=acc,leading=13))],
-            [Paragraph(c["desc"],mk_style(f"wd{i}",fontSize=8,textColor=MUTED,leading=12))],
-            [Paragraph(msg,mk_style(f"wm{i}",fontName="Helvetica-Oblique",fontSize=8,textColor=acc,leading=12))],
+            [Paragraph(f"{icon}  {c['label']}  —  {msg}",mk_style(f"wl{i}",fontName="Helvetica-Bold",fontSize=8.5,textColor=acc,leading=12))],
+            [Paragraph(c["desc"],mk_style(f"wd{i}",fontSize=7.5,textColor=MUTED,leading=11))],
         ]
-        inner_tbl=Table(inner,colWidths=[W-30])
-        inner_tbl.setStyle(TableStyle([("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),2)]))
+        inner_tbl=Table(inner,colWidths=[W-24])
+        inner_tbl.setStyle(TableStyle([("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),1)]))
         row_tbl=Table([[inner_tbl]],colWidths=[W])
         row_tbl.setStyle(TableStyle([
             ("BACKGROUND",(0,0),(-1,-1),bg),
-            ("LEFTPADDING",(0,0),(-1,-1),12),("RIGHTPADDING",(0,0),(-1,-1),12),
-            ("TOPPADDING",(0,0),(-1,-1),8),("BOTTOMPADDING",(0,0),(-1,-1),8),
+            ("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),
+            ("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),
             ("LINEBEFORE",(0,0),(0,-1),3,acc),
             ("BOX",(0,0),(-1,-1),0.5,BORDER),
         ]))
         story.append(KeepTogether(row_tbl))
-        story.append(Spacer(1,4))
+        story.append(Spacer(1,3))
 
-    # ── PAGE 5+: TIMELINE ─────────────────────────────────────
+    # ── PRE-BUILD GALLERY ANCHOR MAP ──────────────────────────
+    # Map refCode -> anchor name for the first image with that code
+    # Used to hyperlink ref codes in timeline and index to gallery
+    gallery_anchors = {}
+    for entry in entries:
+        code = entry.get("refCode","")
+        for att in entry.get("attachments",[]):
+            if att.get("isImage") and att.get("b64") and code not in gallery_anchors:
+                gallery_anchors[code] = f"img_{att['id']}"
+
+    # ── TIMELINE ──────────────────────────────────────────────
     story.append(PageBreak())
     story.append(section_header("CHRONOLOGICAL TIMELINE OF RELATIONSHIP"))
     story.append(Spacer(1,8))
@@ -660,7 +682,8 @@ def build_pdf(data):
 
         note=entry.get("note","") or entry.get("summary","") or entry.get("description","") or entry.get("gap_reason","") or ""
 
-        ref_bg=Table([[Paragraph(code,st["ref_code"])]],colWidths=[18*mm])
+        ref_text = f'<link dest="{gallery_anchors[code]}">{code}</link>' if code in gallery_anchors else code
+        ref_bg=Table([[Paragraph(ref_text,st["ref_code"])]],colWidths=[18*mm])
         ref_bg.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),acc),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),3),("BOTTOMPADDING",(0,0),(-1,-1),3)]))
         left_rows=[[ref_bg],[Spacer(1,4)],[Paragraph(fmt_date(edate),st["entry_date"])]]
         left_tbl=Table(left_rows,colWidths=[W*0.27])
@@ -673,20 +696,54 @@ def build_pdf(data):
         if atts:
             att_str="  ".join([f"[{a.get('fmt','?')}] {a.get('desc','')}" for a in atts])
             right_rows+=[[Spacer(1,4)],[Paragraph(f"📎  {att_str}",mk_style(f"al{code}",fontSize=7.5,textColor=acc,leading=11))]]
-            # Inline image thumbnails
-            img_atts=[a for a in atts if a.get('isImage') and a.get('b64')]
-            if img_atts:
+
+            # Collect thumbnails: real images + PDF placeholders
+            thumb_items = []
+            for a in atts:
+                if a.get('isImage') and a.get('b64'):
+                    thumb_items.append(('img', a))
+                elif a.get('isPDF') and a.get('b64'):
+                    thumb_items.append(('pdf', a))
+
+            if thumb_items:
                 thumb_cells=[]
-                for ia in img_atts[:4]:  # max 4 thumbnails inline
-                    thumb=image_thumbnail(ia['b64'], max_w_mm=40, max_h_mm=35)
+                right_w = W * 0.70 - 16
+                n_thumbs = min(len(thumb_items), 3)
+                thumb_w = right_w / n_thumbs
+                thumb_w_mm = thumb_w / mm
+
+                for kind, a in thumb_items[:3]:
+                    if kind == 'img':
+                        thumb = image_thumbnail(a['b64'], max_w_mm=thumb_w_mm-3, max_h_mm=32)
+                    else:
+                        # PDF placeholder box
+                        try:
+                            ph_w = (thumb_w_mm - 3) * mm
+                            ph_h = 32 * mm
+                            ph = Table([[Paragraph(f"📄 PDF\n{a.get('desc','')[:20]}",
+                                mk_style(f"ph{a['id']}",fontSize=7,textColor=MUTED,leading=10,alignment=TA_CENTER))]],
+                                colWidths=[ph_w])
+                            ph.setStyle(TableStyle([
+                                ("BOX",(0,0),(-1,-1),0.5,BORDER),
+                                ("BACKGROUND",(0,0),(-1,-1),LT_BG),
+                                ("ALIGN",(0,0),(-1,-1),"CENTER"),
+                                ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+                                ("TOPPADDING",(0,0),(-1,-1),10),
+                                ("BOTTOMPADDING",(0,0),(-1,-1),10),
+                            ]))
+                            thumb = ph
+                        except:
+                            thumb = None
                     if thumb:
-                        cap=Paragraph(ia.get('desc','')[:30],mk_style(f"tc{code}",fontSize=7,textColor=MUTED,leading=9,alignment=TA_CENTER))
-                        thumb_cells.append([thumb,cap])
+                        cap = Paragraph(a.get('desc','')[:30], mk_style(f"tc{code}{a['id']}",fontSize=7,textColor=MUTED,leading=9,alignment=TA_CENTER))
+                        thumb_cells.append([thumb, cap])
+
                 if thumb_cells:
-                    padded=thumb_cells+[[Spacer(1,1),Spacer(1,1)]]*(4-len(thumb_cells))
-                    thumb_row=Table([[cell[0] for cell in padded]],colWidths=[45*mm]*4)
-                    cap_row=Table([[cell[1] for cell in padded]],colWidths=[45*mm]*4)
-                    thumb_row.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"BOTTOM"),("LEFTPADDING",(0,0),(-1,-1),2),("RIGHTPADDING",(0,0),(-1,-1),2)]))
+                    n = len(thumb_cells)
+                    col_w = right_w / n
+                    thumb_row=Table([[cell[0] for cell in thumb_cells]],colWidths=[col_w]*n)
+                    cap_row=Table([[cell[1] for cell in thumb_cells]],colWidths=[col_w]*n)
+                    thumb_row.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"BOTTOM"),("LEFTPADDING",(0,0),(-1,-1),2),("RIGHTPADDING",(0,0),(-1,-1),2),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)]))
                     cap_row.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"CENTER"),("LEFTPADDING",(0,0),(-1,-1),2),("RIGHTPADDING",(0,0),(-1,-1),2)]))
                     right_rows+=[[Spacer(1,5)],[thumb_row],[cap_row]]
 
@@ -695,15 +752,15 @@ def build_pdf(data):
         row_tbl=Table([[left_tbl,right_tbl]],colWidths=[W*0.30,W*0.70])
         row_tbl.setStyle(TableStyle([
             ("BACKGROUND",(0,0),(-1,-1),bg),
-            ("LEFTPADDING",(0,0),(0,-1),12),("LEFTPADDING",(1,0),(1,-1),10),
-            ("RIGHTPADDING",(0,0),(-1,-1),12),
-            ("TOPPADDING",(0,0),(-1,-1),10),("BOTTOMPADDING",(0,0),(-1,-1),10),
+            ("LEFTPADDING",(0,0),(0,-1),8),("LEFTPADDING",(1,0),(1,-1),8),
+            ("RIGHTPADDING",(0,0),(-1,-1),8),
+            ("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),
             ("VALIGN",(0,0),(-1,-1),"TOP"),
             ("LINEBEFORE",(0,0),(0,-1),3,acc),
             ("BOX",(0,0),(-1,-1),0.5,BORDER),
         ]))
         story.append(KeepTogether(row_tbl))
-        story.append(Spacer(1,4))
+        story.append(Spacer(1,3))
 
     # ── IMAGE GALLERY ─────────────────────────────────────────
     all_images = []
@@ -714,23 +771,60 @@ def build_pdf(data):
 
     if all_images:
         story.append(PageBreak())
-        story.append(section_header("FULL-SIZE IMAGE GALLERY"))
+        story.append(section_header("IMAGE GALLERY"))
         story.append(Spacer(1,8))
         story.append(Paragraph(
-            "Full-size versions of all uploaded images, in reference code order. "
-            "Thumbnails appear inline within the timeline above.",
+            "All uploaded images in reference code order. Each image is scaled to fit the page.",
             mk_style("gi",fontSize=9,textColor=MUTED,leading=13,spaceAfter=10)))
 
-        for item in all_images:
-            att=item["att"]; code=item["refCode"]
-            story.append(Paragraph(
-                f"<b>{code}</b>  ·  {att.get('desc','')}  ·  {item['entry_main'][:60]}",
-                mk_style(f"glbl{att['id']}",fontName="Helvetica-Bold",fontSize=8.5,textColor=GOLD,leading=12,spaceBefore=10,spaceAfter=4)))
-            full_img=image_full(att["b64"], page_w_mm=160)
-            if full_img:
-                story.append(full_img)
-            story.append(HRFlowable(width=W,thickness=0.5,color=BORDER,spaceAfter=6,spaceBefore=6))
+        # Show 2 images per row, capped at half page width each
+        col_w = (W - 10*mm) / 2
 
+        def make_gallery_img(b64, max_w_mm, max_h_mm):
+            try:
+                raw = b64_to_bytes(b64)
+                buf = io.BytesIO(raw)
+                pil = PILImage.open(buf)
+                pil = fix_orientation(pil)
+                if pil.mode not in ('RGB','L'):
+                    pil = pil.convert('RGB')
+                w, h = pil.size
+                max_w = max_w_mm * mm
+                max_h = max_h_mm * mm
+                scale = min(max_w / w, max_h / h, 1.0)
+                img_buf = io.BytesIO()
+                pil.save(img_buf, format='JPEG', quality=88)
+                img_buf.seek(0)
+                return RLImage(img_buf, width=w*scale, height=h*scale)
+            except Exception as e:
+                print(f"[gallery img error] {e}")
+                return None
+
+        # Group into pairs, placing anchors before each pair
+        for i in range(0, len(all_images), 2):
+            pair = all_images[i:i+2]
+            # Place anchor before this pair (keyed to first item)
+            story.append(AnchorFlowable(f"img_{pair[0]['att']['id']}"))
+
+            cells = []
+            for item in pair:
+                att = item["att"]; code = item["refCode"]
+                lbl = Paragraph(
+                    f"<b>{code}</b>  {att.get('desc','')}",
+                    mk_style(f"gl{att['id']}",fontSize=8,textColor=GOLD,leading=11,spaceAfter=3))
+                img = make_gallery_img(att["b64"], max_w_mm=(col_w/mm)-4, max_h_mm=90)
+                cell_content = [lbl, img] if img else [lbl]
+                cells.append(cell_content)
+            while len(cells) < 2:
+                cells.append([Spacer(1,1)])
+            tbl = Table([[cells[0], cells[1]]], colWidths=[col_w, col_w])
+            tbl.setStyle(TableStyle([
+                ("VALIGN",(0,0),(-1,-1),"TOP"),
+                ("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),4),
+                ("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),8),
+            ]))
+            story.append(tbl)
+            story.append(Spacer(1,4))
     # ── EVIDENCE INDEX ────────────────────────────────────────
     story.append(PageBreak())
     story.append(section_header("EVIDENCE INDEX"))
@@ -751,8 +845,9 @@ def build_pdf(data):
             att_p=Paragraph("<br/>".join([f"[{a.get('fmt','?')}]  {code}_{a.get('desc','file').lower().replace(' ','-')}" for a in atts]),mk_style(f"af{code}",fontName="Courier",fontSize=7.5,textColor=TEXT,leading=12))
         else:
             att_p=Paragraph("— no files listed —",st["small_it"])
+        ref_text = f'<link dest="{gallery_anchors[code]}">{code}</link>' if code in gallery_anchors else code
         idx_rows.append([
-            Paragraph(code,mk_style(f"ic{code}",fontName="Courier-Bold",fontSize=9,textColor=acc,leading=12)),
+            Paragraph(ref_text,mk_style(f"ic{code}",fontName="Courier-Bold",fontSize=9,textColor=acc,leading=12)),
             Paragraph(fmt_date(entry.get("date","")),mk_style(f"id{code}",fontSize=8,textColor=MUTED,leading=11)),
             Paragraph(mi["label"],mk_style(f"il{code}",fontName="Helvetica-Bold",fontSize=8,textColor=acc,leading=11)),
             Paragraph((main[:80]+"…" if len(main)>80 else main),mk_style(f"im{code}",fontSize=8.5,textColor=TEXT,leading=12)),
@@ -846,6 +941,22 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self,fmt,*args): pass  # suppress default access log
     def do_OPTIONS(self):
         self.send_response(200);self._cors();self.end_headers()
+    def do_GET(self):
+        # Serve the builder HTML at /
+        if self.path in ('/', '/timeline_builder.html'):
+            try:
+                here = os.path.dirname(os.path.abspath(__file__))
+                with open(os.path.join(here, 'timeline_builder.html'), 'rb') as f:
+                    html = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(html)))
+                self.end_headers()
+                self.wfile.write(html)
+            except FileNotFoundError:
+                self.send_error(404, "timeline_builder.html not found")
+        else:
+            self.send_error(404)
     def do_POST(self):
         if self.path!="/generate":self.send_error(404);return
         length = int(self.headers.get("Content-Length",0))
@@ -875,9 +986,10 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods","POST, OPTIONS")
 
 if __name__=="__main__":
-    PORT=5678
-    server=HTTPServer(("localhost",PORT),Handler)
-    print(f"\n✓  Evidence Pack PDF server running at http://localhost:{PORT}")
-    print(f"   Open timeline_builder.html in your browser, fill in all tabs, click Generate PDF.\n")
+    import os
+    PORT = int(os.environ.get("PORT", 5678))
+    server=HTTPServer(("0.0.0.0",PORT),Handler)
+    print(f"\n✓  Evidence Pack PDF server running on port {PORT}")
+    print(f"   Open http://localhost:{PORT} in your browser\n")
     try: server.serve_forever()
     except KeyboardInterrupt: print("\nServer stopped.")
