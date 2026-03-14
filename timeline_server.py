@@ -117,14 +117,17 @@ def image_thumbnail(b64_data_url, max_w_mm=55, max_h_mm=45):
         pil = fix_orientation(pil)
         if pil.mode not in ('RGB', 'L'):
             pil = pil.convert('RGB')
-        w, h = pil.size
-        max_w = max_w_mm * mm
-        max_h = max_h_mm * mm
-        scale = min(max_w / w, max_h / h)
+        w_px, h_px = pil.size
+        dpi = 96
+        max_w_px = max_w_mm / 25.4 * dpi
+        max_h_px = max_h_mm / 25.4 * dpi
+        scale = min(max_w_px / w_px, max_h_px / h_px, 1.0)
+        out_w = (w_px * scale / dpi) * 25.4 * mm
+        out_h = (h_px * scale / dpi) * 25.4 * mm
         img_buf = io.BytesIO()
         pil.save(img_buf, format='JPEG', quality=85)
         img_buf.seek(0)
-        return RLImage(img_buf, width=w*scale, height=h*scale)
+        return RLImage(img_buf, width=out_w, height=out_h)
     except Exception as e:
         print(f"[image_thumbnail error] {e}")
         return None
@@ -138,13 +141,16 @@ def image_full(b64_data_url, page_w_mm=160):
         pil = fix_orientation(pil)
         if pil.mode not in ('RGB', 'L'):
             pil = pil.convert('RGB')
-        w, h = pil.size
-        max_w = page_w_mm * mm
-        scale = min(max_w / w, 1.0)
+        w_px, h_px = pil.size
+        dpi = 96
+        max_w_px = page_w_mm / 25.4 * dpi
+        scale = min(max_w_px / w_px, 1.0)
+        out_w = (w_px * scale / dpi) * 25.4 * mm
+        out_h = (h_px * scale / dpi) * 25.4 * mm
         img_buf = io.BytesIO()
         pil.save(img_buf, format='JPEG', quality=90)
         img_buf.seek(0)
-        return RLImage(img_buf, width=w*scale, height=h*scale)
+        return RLImage(img_buf, width=out_w, height=out_h)
     except Exception as e:
         print(f"[image_full error] {e}")
         return None
@@ -476,25 +482,6 @@ def build_pdf(data):
     ]))
     story.append(sum_tbl)
 
-    # Fin exemption note
-    fin_ex = data.get("fin_exemption","")
-    fin_sum = data.get("fin_summary","")
-    if fin_ex and fin_ex != "none":
-        story.append(Spacer(1,10))
-        ex_label = "Disability benefit exemption applies — adequate maintenance test used" if fin_ex=="disability" else "Financial exemption applies"
-        fin_rows = [[
-            Paragraph(ex_label, mk_style("fe",fontName="Helvetica-Bold",fontSize=8.5,textColor=GREEN,leading=12)),
-            Paragraph(fin_sum or "See adequate maintenance calculator document",mk_style("fs",fontSize=8.5,textColor=TEXT,leading=12)),
-        ]]
-        fin_tbl = Table(fin_rows, colWidths=[W*0.45, W*0.55])
-        fin_tbl.setStyle(TableStyle([
-            ("BACKGROUND",(0,0),(-1,-1),GREEN_BG),
-            ("BOX",(0,0),(-1,-1),0.5,GREEN),
-            ("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),
-            ("TOPPADDING",(0,0),(-1,-1),7),("BOTTOMPADDING",(0,0),(-1,-1),7),
-        ]))
-        story.append(fin_tbl)
-
     # ── PAGE 2: SPONSOR STATEMENT ─────────────────────────────
     story.append(PageBreak())
     story.append(section_header("SPONSOR'S PERSONAL STATEMENT"))
@@ -788,14 +775,19 @@ def build_pdf(data):
                 pil = fix_orientation(pil)
                 if pil.mode not in ('RGB','L'):
                     pil = pil.convert('RGB')
-                w, h = pil.size
-                max_w = max_w_mm * mm
-                max_h = max_h_mm * mm
-                scale = min(max_w / w, max_h / h, 1.0)
+                w_px, h_px = pil.size
+                # Convert max dimensions from mm to pixels at 96dpi for scaling
+                dpi = 96
+                max_w_px = max_w_mm / 25.4 * dpi
+                max_h_px = max_h_mm / 25.4 * dpi
+                scale = min(max_w_px / w_px, max_h_px / h_px, 1.0)
+                # Final dimensions in ReportLab points
+                out_w = (w_px * scale / dpi) * 25.4 * mm
+                out_h = (h_px * scale / dpi) * 25.4 * mm
                 img_buf = io.BytesIO()
                 pil.save(img_buf, format='JPEG', quality=88)
                 img_buf.seek(0)
-                return RLImage(img_buf, width=w*scale, height=h*scale)
+                return RLImage(img_buf, width=out_w, height=out_h)
             except Exception as e:
                 print(f"[gallery img error] {e}")
                 return None
@@ -812,7 +804,7 @@ def build_pdf(data):
                 lbl = Paragraph(
                     f"<b>{code}</b>  {att.get('desc','')}",
                     mk_style(f"gl{att['id']}",fontSize=8,textColor=GOLD,leading=11,spaceAfter=3))
-                img = make_gallery_img(att["b64"], max_w_mm=(col_w/mm)-4, max_h_mm=90)
+                img = make_gallery_img(att["b64"], max_w_mm=(col_w/mm)-4, max_h_mm=70)
                 cell_content = [lbl, img] if img else [lbl]
                 cells.append(cell_content)
             while len(cells) < 2:
