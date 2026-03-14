@@ -94,32 +94,20 @@ def b64_to_bytes(data_url):
         data_url = data_url.split(',', 1)[1]
     return base64.b64decode(data_url)
 
-def fix_orientation(pil_img):
-    """Rotate image according to EXIF orientation tag so it prints the right way up."""
-    try:
-        exif = pil_img._getexif()
-        if exif:
-            orientation = exif.get(274)  # 274 = Orientation tag
-            rotations = {3: 180, 6: 270, 8: 90}
-            if orientation in rotations:
-                pil_img = pil_img.rotate(rotations[orientation], expand=True)
-    except Exception:
-        pass  # No EXIF data or unreadable — just use image as-is
-    return pil_img
-
 def image_thumbnail(b64_data_url, max_w_mm=55, max_h_mm=45):
     """Return a ReportLab Image flowable thumbnail from a base64 image."""
     try:
         raw = b64_to_bytes(b64_data_url)
         buf = io.BytesIO(raw)
         pil = PILImage.open(buf)
-        pil = fix_orientation(pil)
+        # Convert to RGB to handle RGBA/palette PNGs
         if pil.mode not in ('RGB', 'L'):
             pil = pil.convert('RGB')
         w, h = pil.size
         max_w = max_w_mm * mm
         max_h = max_h_mm * mm
         scale = min(max_w / w, max_h / h)
+        # Save as JPEG for ReportLab compatibility
         img_buf = io.BytesIO()
         pil.save(img_buf, format='JPEG', quality=85)
         img_buf.seek(0)
@@ -134,7 +122,7 @@ def image_full(b64_data_url, page_w_mm=160):
         raw = b64_to_bytes(b64_data_url)
         buf = io.BytesIO(raw)
         pil = PILImage.open(buf)
-        pil = fix_orientation(pil)
+        # Convert to RGB to handle RGBA/palette PNGs
         if pil.mode not in ('RGB', 'L'):
             pil = pil.convert('RGB')
         w, h = pil.size
@@ -858,22 +846,6 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self,fmt,*args): pass  # suppress default access log
     def do_OPTIONS(self):
         self.send_response(200);self._cors();self.end_headers()
-    def do_GET(self):
-        # Serve the builder HTML at /
-        if self.path in ('/', '/timeline_builder.html'):
-            try:
-                here = os.path.dirname(os.path.abspath(__file__))
-                with open(os.path.join(here, 'timeline_builder.html'), 'rb') as f:
-                    html = f.read()
-                self.send_response(200)
-                self.send_header("Content-Type", "text/html; charset=utf-8")
-                self.send_header("Content-Length", str(len(html)))
-                self.end_headers()
-                self.wfile.write(html)
-            except FileNotFoundError:
-                self.send_error(404, "timeline_builder.html not found")
-        else:
-            self.send_error(404)
     def do_POST(self):
         if self.path!="/generate":self.send_error(404);return
         length = int(self.headers.get("Content-Length",0))
@@ -903,10 +875,9 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Methods","POST, OPTIONS")
 
 if __name__=="__main__":
-    import os
-    PORT = int(os.environ.get("PORT", 5678))
-    server=HTTPServer(("0.0.0.0",PORT),Handler)
-    print(f"\n✓  Evidence Pack PDF server running on port {PORT}")
-    print(f"   Open http://localhost:{PORT} in your browser\n")
+    PORT=5678
+    server=HTTPServer(("localhost",PORT),Handler)
+    print(f"\n✓  Evidence Pack PDF server running at http://localhost:{PORT}")
+    print(f"   Open timeline_builder.html in your browser, fill in all tabs, click Generate PDF.\n")
     try: server.serve_forever()
     except KeyboardInterrupt: print("\nServer stopped.")
