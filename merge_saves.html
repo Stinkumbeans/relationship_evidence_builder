@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Evidence Pack — Merge Saves</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:#F7F5F0; --card:#FFFFFF; --border:#E0DBD3; --bd:#C4BBB0;
+  --gold:#A07830; --gl:#C8A96E; --gbg:#FDF8F0;
+  --text:#1A1814; --mut:#7A7268; --fnt:#B8B0A4;
+  --grn:#2E7D5E; --grnbg:#EEF8F3;
+  --red:#B94C39; --redbg:#FDF5F3;
+  --blue:#4A7FA5; --bluebg:#EEF4FA;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);font-family:'Source Sans 3',Georgia,sans-serif;color:var(--text);min-height:100vh;font-size:14px;}
+
+.hdr{background:var(--text);padding:32px 28px 24px;position:relative;}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gl),transparent);}
+.hdr-in{max-width:860px;margin:0 auto;}
+.eyebrow{font-size:10px;letter-spacing:5px;color:var(--gl);text-transform:uppercase;margin-bottom:6px;}
+h1{font-family:'Playfair Display',serif;font-size:clamp(20px,3.5vw,28px);font-weight:400;color:#F5F0E8;margin-bottom:4px;}
+.h1em{font-style:italic;color:var(--gl);}
+.subhd{color:#6A6258;font-size:13px;font-weight:300;}
+
+.main{max-width:860px;margin:0 auto;padding:28px 20px 100px;}
+
+/* DROP ZONES */
+.drop-pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;}
+.drop-zone{border:2px dashed var(--bd);border-radius:8px;padding:28px 20px;text-align:center;cursor:pointer;transition:all .2s;background:var(--card);position:relative;}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--gold);background:var(--gbg);}
+.drop-zone.loaded{border-color:var(--grn);border-style:solid;background:var(--grnbg);}
+.drop-zone.loaded:hover{border-color:var(--grn);background:#E4F5EC;}
+.dz-icon{font-size:30px;margin-bottom:8px;}
+.dz-label{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:6px;}
+.dz-name{font-size:13px;font-weight:600;color:var(--text);margin-bottom:2px;word-break:break-word;}
+.dz-meta{font-size:11px;color:var(--mut);}
+.dz-clear{position:absolute;top:8px;right:10px;background:none;border:none;cursor:pointer;color:var(--fnt);font-size:16px;padding:2px 5px;border-radius:3px;transition:color .15s;}
+.dz-clear:hover{color:var(--red);}
+input[type=file]{display:none;}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:18px 22px;margin-bottom:14px;}
+.card-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:14px;}
+.notice{background:var(--gbg);border:1px solid rgba(160,120,48,.25);border-left:3px solid var(--gold);border-radius:0 4px 4px 0;padding:11px 14px;font-size:12.5px;color:var(--mut);line-height:1.6;margin-bottom:16px;}
+.notice strong{color:var(--text);}
+
+/* MERGE PREVIEW */
+.section-label{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--mut);font-weight:600;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+
+/* CONFLICT ROWS */
+.conflict-item{border:1px solid rgba(185,76,57,.3);border-radius:5px;background:var(--redbg);margin-bottom:10px;overflow:hidden;}
+.conflict-header{padding:8px 14px;background:rgba(185,76,57,.08);font-size:11px;font-weight:600;color:var(--red);display:flex;align-items:center;gap:8px;border-bottom:1px solid rgba(185,76,57,.2);}
+.conflict-cols{display:grid;grid-template-columns:1fr 1fr;gap:0;}
+.conflict-col{padding:10px 14px;cursor:pointer;transition:background .15s;position:relative;}
+.conflict-col:first-child{border-right:1px solid rgba(185,76,57,.2);}
+.conflict-col:hover{background:rgba(185,76,57,.06);}
+.conflict-col.chosen{background:rgba(46,125,94,.1);outline:2px solid var(--grn);outline-offset:-2px;border-radius:0;}
+.conflict-col-who{font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:600;margin-bottom:5px;}
+.conflict-col-who.a{color:var(--blue);}
+.conflict-col-who.b{color:var(--gold);}
+.conflict-text{font-size:12px;color:var(--text);line-height:1.6;max-height:100px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;}
+.conflict-choose{font-size:10px;color:var(--grn);font-weight:600;position:absolute;bottom:6px;right:8px;display:none;}
+.conflict-col.chosen .conflict-choose{display:block;}
+
+/* AUTO-MERGED ROWS */
+.auto-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px;}
+.auto-row:last-child{border-bottom:none;}
+.auto-badge{font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;white-space:nowrap;flex-shrink:0;}
+.badge-same{background:var(--grnbg);color:var(--grn);}
+.badge-a{background:var(--bluebg);color:var(--blue);}
+.badge-b{background:var(--gbg);color:var(--gold);}
+.badge-union{background:var(--grnbg);color:var(--grn);}
+.auto-label{color:var(--mut);flex-shrink:0;min-width:140px;}
+.auto-val{color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;}
+
+/* ENTRIES SUMMARY */
+.entries-summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px;}
+.entry-type-row{background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:10px 14px;}
+.entry-type-name{font-size:11px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.entry-counts{font-size:11px;color:var(--mut);display:flex;gap:10px;}
+.entry-count-a{color:var(--blue);}
+.entry-count-b{color:var(--gold);}
+.entry-count-merged{color:var(--grn);font-weight:600;}
+
+/* STATUS PILLS */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:3px 10px;border-radius:10px;}
+.pill-ok{background:var(--grnbg);color:var(--grn);}
+.pill-warn{background:#FFF8E6;color:#B07000;border:1px solid rgba(176,112,0,.2);}
+.pill-err{background:var(--redbg);color:var(--red);}
+
+/* BOTTOM BAR */
+.gen-bar{position:sticky;bottom:0;background:rgba(247,245,240,.97);backdrop-filter:blur(8px);border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:14px;justify-content:space-between;}
+.bar-info{font-size:12px;color:var(--mut);}
+.btn-merge{padding:11px 28px;background:var(--text);color:#F5F0E8;border:none;border-radius:4px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;}
+.btn-merge:hover{background:#2A2820;}
+.btn-merge:disabled{opacity:.4;cursor:not-allowed;}
+.btn-sec{padding:10px 18px;background:transparent;color:var(--text);border:1.5px solid var(--bd);border-radius:4px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;}
+.btn-sec:hover{border-color:var(--gold);color:var(--gold);}
+
+#status{padding:10px 16px;border-radius:4px;font-size:13px;display:none;margin-bottom:12px;}
+.s-ok{background:var(--grnbg);color:var(--grn);border:1px solid rgba(46,125,94,.3);}
+.s-err{background:var(--redbg);color:var(--red);border:1px solid rgba(185,76,57,.3);}
+
+@media(max-width:600px){.drop-pair,.conflict-cols,.entries-summary{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-in">
+    <div class="eyebrow">UK Family Visa · Evidence Builder</div>
+    <h1>Merge <span class="h1em">Save Files</span></h1>
+    <p class="subhd">Combine two save files from different devices — entries, calendar data and statements are merged automatically</p>
+  </div>
+</div>
+
+<div class="main">
+  <div class="notice">
+    <strong>How it works:</strong> Drop two <code>.json</code> save files below — one from each person or device. Entries and contact calendar data are merged automatically. If both of you edited the same text field differently, you'll be shown both versions to pick from. Everything else merges silently.
+  </div>
+
+  <div class="drop-pair">
+    <!-- DROP A -->
+    <div class="drop-zone" id="dz-a"
+         onclick="document.getElementById('file-a').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleDrop(event,'a')">
+      <div class="dz-icon">📄</div>
+      <div class="dz-label">Save file A</div>
+      <div id="dz-a-name" style="display:none">
+        <div class="dz-name" id="dz-a-filename"></div>
+        <div class="dz-meta" id="dz-a-meta"></div>
+      </div>
+      <div id="dz-a-prompt" style="font-size:12px;color:var(--mut)">Drop or click to load — your save file</div>
+      <button class="dz-clear" id="dz-a-clear" onclick="clearFile(event,'a')" style="display:none">×</button>
+    </div>
+    <!-- DROP B -->
+    <div class="drop-zone" id="dz-b"
+         onclick="document.getElementById('file-b').click()"
+         ondragover="event.preventDefault();this.classList.add('drag')"
+         ondragleave="this.classList.remove('drag')"
+         ondrop="handleDrop(event,'b')">
+      <div class="dz-icon">📄</div>
+      <div class="dz-label">Save file B</div>
+      <div id="dz-b-name" style="display:none">
+        <div class="dz-name" id="dz-b-filename"></div>
+        <div class="dz-meta" id="dz-b-meta"></div>
+      </div>
+      <div id="dz-b-prompt" style="font-size:12px;color:var(--mut)">Drop or click to load — partner's save file</div>
+      <button class="dz-clear" id="dz-b-clear" onclick="clearFile(event,'b')" style="display:none">×</button>
+    </div>
+  </div>
+  <input type="file" id="file-a" accept=".json" onchange="loadFile(this,'a')">
+  <input type="file" id="file-b" accept=".json" onchange="loadFile(this,'b')">
+
+  <div id="preview" style="display:none">
+
+    <!-- CONFLICTS -->
+    <div id="conflicts-section" style="display:none">
+      <div class="card">
+        <div class="card-title">⚠ Conflicts — choose which version to keep</div>
+        <div class="notice" style="margin-bottom:14px"><strong>These fields were edited differently in each save.</strong> Click the version you want to keep. Fields not shown here were identical or only filled in by one person — they've been merged automatically.</div>
+        <div id="conflicts-list"></div>
+      </div>
+    </div>
+
+    <!-- AUTO-MERGED FIELDS -->
+    <div class="card">
+      <div class="card-title">✓ Auto-merged fields</div>
+      <div id="auto-merged-list"></div>
+    </div>
+
+    <!-- ENTRIES -->
+    <div class="card">
+      <div class="card-title">Timeline entries</div>
+      <div id="entries-summary"></div>
+      <div id="entries-detail" style="font-size:12px;color:var(--mut);margin-top:8px;"></div>
+    </div>
+
+    <!-- CONTACT CALENDAR -->
+    <div class="card" id="calendar-section">
+      <div class="card-title">Contact calendar</div>
+      <div id="calendar-summary"></div>
+    </div>
+
+  </div>
+
+  <div id="status"></div>
+</div>
+
+<div class="gen-bar">
+  <div class="bar-info" id="bar-info">Load two save files to begin</div>
+  <div style="display:flex;gap:8px;">
+    <button class="btn-sec" id="reset-btn" onclick="resetAll()" style="display:none">↺ Start over</button>
+    <button class="btn-merge" id="merge-btn" onclick="downloadMerged()" disabled>⬇ Download merged save</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ─────────────────────────────────────────────────────
+let saveA = null, saveB = null;
+let conflicts = {};   // fieldId -> chosen ('a'|'b')
+let pendingConflicts = new Set();
+
+const FIELD_LABELS = {
+  sponsor_name:'Sponsor name', applicant_name:'Applicant name',
+  rel_start:'Relationship start', applicant_country:'Applicant country',
+  app_ref:'Home Office ref', rel_status:'Relationship status',
+  cohabited:'Cohabitation status', sponsor_prev:'Sponsor previous relationship',
+  applicant_prev:'Applicant previous relationship',
+  fin_exemption:'Financial exemption', fin_summary:'Financial summary',
+  s_how_met:'Sponsor — how you met', s_develop:'Sponsor — relationship development',
+  s_maintain:'Sponsor — day-to-day contact', s_future:'Sponsor — future plans',
+  s_gaps:'Sponsor — gap explanations', s_other:'Sponsor — other notes',
+  a_how_met:'Applicant — how you met', a_develop:'Applicant — relationship development',
+  a_maintain:'Applicant — day-to-day contact', a_future:'Applicant — future plans',
+  a_gaps:'Applicant — gap explanations',
+  wit_name:'Witness name', wit_rel:'Witness relationship', wit_summary:'Witness summary',
+};
+
+const TYPE_LABELS = {
+  flight:'Flights & Travel', airbnb:'Accommodation',
+  transfer:'Bank Transfers', photo:'Photos & Memories', gap:'Gap Explanations',
+};
+
+// ── FILE LOADING ──────────────────────────────────────────────
+function handleDrop(e, which) {
+  e.preventDefault();
+  document.getElementById(`dz-${which}`).classList.remove('drag');
+  const f = e.dataTransfer.files[0];
+  if (f) readFile(f, which);
+}
+function loadFile(input, which) {
+  if (input.files[0]) readFile(input.files[0], which);
+  input.value = '';
+}
+function readFile(file, which) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      if (!data.version || !data.fields || !data.rawEntries) throw new Error('Not a valid save file');
+      if (which === 'a') saveA = data; else saveB = data;
+      setDropLoaded(which, file.name, data);
+      if (saveA && saveB) buildPreview();
+    } catch(err) {
+      showStatus('Could not read file — make sure it\'s a .json save from the Evidence Builder.', false);
+    }
+  };
+  reader.readAsText(file);
+}
+function setDropLoaded(which, filename, data) {
+  const dz = document.getElementById(`dz-${which}`);
+  dz.classList.add('loaded');
+  document.getElementById(`dz-${which}-prompt`).style.display = 'none';
+  document.getElementById(`dz-${which}-name`).style.display = 'block';
+  document.getElementById(`dz-${which}-filename`).textContent = filename;
+  const entries = Object.values(data.rawEntries || {}).flat().length;
+  const calDays = Object.keys(data.contactData || {}).length;
+  const saved = data.savedAt ? new Date(data.savedAt).toLocaleString('en-GB', {day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'unknown date';
+  document.getElementById(`dz-${which}-meta`).textContent = `${entries} entries · ${calDays} calendar days · saved ${saved}`;
+  document.getElementById(`dz-${which}-clear`).style.display = 'block';
+}
+function clearFile(e, which) {
+  e.stopPropagation();
+  if (which === 'a') saveA = null; else saveB = null;
+  const dz = document.getElementById(`dz-${which}`);
+  dz.classList.remove('loaded');
+  document.getElementById(`dz-${which}-prompt`).style.display = 'block';
+  document.getElementById(`dz-${which}-name`).style.display = 'none';
+  document.getElementById(`dz-${which}-clear`).style.display = 'none';
+  document.getElementById('preview').style.display = 'none';
+  document.getElementById('merge-btn').disabled = true;
+  document.getElementById('reset-btn').style.display = 'none';
+  document.getElementById('bar-info').textContent = 'Load two save files to begin';
+  conflicts = {}; pendingConflicts = new Set();
+}
+function resetAll() {
+  clearFile({stopPropagation:()=>{}}, 'a');
+  clearFile({stopPropagation:()=>{}}, 'b');
+}
+
+// ── BUILD PREVIEW ─────────────────────────────────────────────
+function buildPreview() {
+  conflicts = {}; pendingConflicts = new Set();
+
+  const fieldConflicts = [];
+  const autoMerged = [];
+
+  const allFields = new Set([...Object.keys(saveA.fields||{}), ...Object.keys(saveB.fields||{})]);
+  allFields.forEach(fid => {
+    const va = (saveA.fields[fid]||'').trim();
+    const vb = (saveB.fields[fid]||'').trim();
+    const label = FIELD_LABELS[fid] || fid;
+
+    if (va === vb) {
+      if (va) autoMerged.push({label, value:va, badge:'same', badgeText:'Identical'});
+    } else if (!va && vb) {
+      autoMerged.push({label, value:vb, badge:'b', badgeText:'From B only'});
+    } else if (va && !vb) {
+      autoMerged.push({label, value:va, badge:'a', badgeText:'From A only'});
+    } else {
+      // Genuine conflict
+      fieldConflicts.push({fid, label, va, vb});
+      pendingConflicts.add(fid);
+    }
+  });
+
+  // Render conflicts
+  const conflictsSection = document.getElementById('conflicts-section');
+  const conflictsList = document.getElementById('conflicts-list');
+  if (fieldConflicts.length) {
+    conflictsSection.style.display = 'block';
+    conflictsList.innerHTML = fieldConflicts.map(({fid,label,va,vb}) => `
+      <div class="conflict-item" id="conflict-${fid}">
+        <div class="conflict-header">⚠ ${label}</div>
+        <div class="conflict-cols">
+          <div class="conflict-col" id="col-a-${fid}" onclick="chooseConflict('${fid}','a')">
+            <div class="conflict-col-who a">Save A</div>
+            <div class="conflict-text">${escHtml(va)}</div>
+            <div class="conflict-choose">✓ Selected</div>
+          </div>
+          <div class="conflict-col" id="col-b-${fid}" onclick="chooseConflict('${fid}','b')">
+            <div class="conflict-col-who b">Save B</div>
+            <div class="conflict-text">${escHtml(vb)}</div>
+            <div class="conflict-choose">✓ Selected</div>
+          </div>
+        </div>
+      </div>`).join('');
+  } else {
+    conflictsSection.style.display = 'none';
+  }
+
+  // Render auto-merged fields
+  const autoList = document.getElementById('auto-merged-list');
+  if (autoMerged.length) {
+    autoList.innerHTML = autoMerged.map(({label,value,badge,badgeText}) => `
+      <div class="auto-row">
+        <span class="auto-badge badge-${badge}">${badgeText}</span>
+        <span class="auto-label">${label}</span>
+        <span class="auto-val" title="${escHtml(value)}">${escHtml(value) || '<em style="color:var(--fnt)">empty</em>'}</span>
+      </div>`).join('');
+  } else {
+    autoList.innerHTML = '<div style="font-size:12px;color:var(--fnt);font-style:italic">No simple fields found.</div>';
+  }
+
+  // Render entries summary
+  renderEntriesSummary();
+
+  // Render calendar summary
+  renderCalendarSummary();
+
+  document.getElementById('preview').style.display = 'block';
+  document.getElementById('reset-btn').style.display = 'inline-flex';
+  updateMergeBtn();
+}
+
+function chooseConflict(fid, which) {
+  conflicts[fid] = which;
+  pendingConflicts.delete(fid);
+  document.getElementById(`col-a-${fid}`).classList.toggle('chosen', which==='a');
+  document.getElementById(`col-b-${fid}`).classList.toggle('chosen', which==='b');
+  updateMergeBtn();
+}
+
+function updateMergeBtn() {
+  const btn = document.getElementById('merge-btn');
+  const remaining = pendingConflicts.size;
+  if (remaining > 0) {
+    btn.disabled = true;
+    document.getElementById('bar-info').textContent = `${remaining} conflict${remaining>1?'s':''} remaining — choose a version for each`;
+  } else {
+    btn.disabled = false;
+    document.getElementById('bar-info').textContent = 'All conflicts resolved — ready to download';
+  }
+}
+
+function renderEntriesSummary() {
+  const types = ['flight','airbnb','transfer','photo','gap'];
+  const aEntries = saveA.rawEntries || {};
+  const bEntries = saveB.rawEntries || {};
+
+  let summaryHTML = '<div class="entries-summary">';
+  let detailLines = [];
+  let totalMerged = 0;
+
+  types.forEach(tid => {
+    const a = aEntries[tid] || [];
+    const b = bEntries[tid] || [];
+    // Deduplicate by ref code — prefer A's version when same code exists in both
+    const merged = mergeEntries(a, b);
+    totalMerged += merged.length;
+
+    const dupes = (a.length + b.length) - merged.length;
+    summaryHTML += `<div class="entry-type-row">
+      <div class="entry-type-name">${TYPE_LABELS[tid]}</div>
+      <div class="entry-counts">
+        <span class="entry-count-a">A: ${a.length}</span>
+        <span class="entry-count-b">B: ${b.length}</span>
+        <span class="entry-count-merged">→ ${merged.length} merged${dupes>0?' ('+dupes+' dupes removed)':''}</span>
+      </div>
+    </div>`;
+    if (merged.length > 0 && (a.length !== b.length || dupes > 0)) {
+      detailLines.push(`${TYPE_LABELS[tid]}: ${a.length} + ${b.length} = ${merged.length} unique entries`);
+    }
+  });
+  summaryHTML += '</div>';
+
+  document.getElementById('entries-summary').innerHTML = summaryHTML;
+  document.getElementById('entries-detail').innerHTML = detailLines.length
+    ? detailLines.map(l=>`<div style="padding:2px 0;color:var(--mut)">${l}</div>`).join('')
+    : '<div style="color:var(--fnt);font-style:italic">Entries are identical in both saves.</div>';
+}
+
+function renderCalendarSummary() {
+  const aData = saveA.contactData || {};
+  const bData = saveB.contactData || {};
+  const aDays = Object.keys(aData).length;
+  const bDays = Object.keys(bData).length;
+
+  // Union
+  const merged = {};
+  Object.entries(aData).forEach(([d,types]) => { merged[d] = new Set(types); });
+  Object.entries(bData).forEach(([d,types]) => {
+    if (!merged[d]) merged[d] = new Set();
+    types.forEach(t => merged[d].add(t));
+  });
+  const mergedDays = Object.keys(merged).length;
+  const newFromB = Object.keys(bData).filter(d => !aData[d]).length;
+  const newFromA = Object.keys(aData).filter(d => !bData[d]).length;
+
+  const section = document.getElementById('calendar-section');
+  if (!aDays && !bDays) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+  document.getElementById('calendar-summary').innerHTML = `
+    <div class="entries-summary">
+      <div class="entry-type-row">
+        <div class="entry-type-name">Contact days</div>
+        <div class="entry-counts">
+          <span class="entry-count-a">A: ${aDays} days</span>
+          <span class="entry-count-b">B: ${bDays} days</span>
+          <span class="entry-count-merged">→ ${mergedDays} merged</span>
+        </div>
+      </div>
+    </div>
+    <div style="font-size:12px;color:var(--mut);margin-top:6px">
+      ${newFromA>0?`<div>+${newFromA} days only in A</div>`:''}
+      ${newFromB>0?`<div>+${newFromB} days only in B</div>`:''}
+      ${newFromA===0&&newFromB===0?'<div style="color:var(--fnt);font-style:italic">Calendar data is identical in both saves.</div>':''}
+      <div style="margin-top:4px">Contact calendar is merged automatically — all days from both saves are included.</div>
+    </div>`;
+}
+
+// ── MERGE LOGIC ────────────────────────────────────────────────
+function mergeEntries(a, b) {
+  // Combine, deduplicate by ref code (prefer A when same code)
+  const seen = new Map();
+  [...a, ...b].forEach(entry => {
+    if (!seen.has(entry.code)) seen.set(entry.code, entry);
+  });
+  // Renumber
+  const merged = [...seen.values()];
+  // Sort by date field if present
+  merged.sort((x,y) => {
+    const dx = (x.fields?.date||x.code||'');
+    const dy = (y.fields?.date||y.code||'');
+    return dx.localeCompare(dy);
+  });
+  return merged;
+}
+
+function buildMergedState() {
+  // Fields
+  const mergedFields = {};
+  const allFields = new Set([...Object.keys(saveA.fields||{}), ...Object.keys(saveB.fields||{})]);
+  allFields.forEach(fid => {
+    const va = (saveA.fields[fid]||'').trim();
+    const vb = (saveB.fields[fid]||'').trim();
+    if (va === vb) { mergedFields[fid] = va; }
+    else if (!va) { mergedFields[fid] = vb; }
+    else if (!vb) { mergedFields[fid] = va; }
+    else { mergedFields[fid] = conflicts[fid] === 'b' ? vb : va; }
+  });
+
+  // Entries
+  const types = ['flight','airbnb','transfer','photo','gap'];
+  const mergedRawEntries = {};
+  let maxId = 0;
+  types.forEach(tid => {
+    const a = (saveA.rawEntries||{})[tid] || [];
+    const b = (saveB.rawEntries||{})[tid] || [];
+    const merged = mergeEntries(a, b);
+    // Renumber li and code
+    const prefix = {flight:'FLT',airbnb:'ACM',transfer:'TRF',photo:'PHT',gap:'GAP'}[tid];
+    mergedRawEntries[tid] = merged.map((e,i) => {
+      const newCode = `${prefix}-${String(i+1).padStart(3,'0')}`;
+      if (e.id > maxId) maxId = e.id;
+      return {...e, li:i+1, code:newCode};
+    });
+  });
+
+  // Contact calendar — union
+  const aData = saveA.contactData || {};
+  const bData = saveB.contactData || {};
+  const mergedCal = {};
+  Object.entries(aData).forEach(([d,types]) => { mergedCal[d] = [...new Set(types)]; });
+  Object.entries(bData).forEach(([d,types]) => {
+    if (!mergedCal[d]) mergedCal[d] = [];
+    const s = new Set(mergedCal[d]);
+    types.forEach(t => s.add(t));
+    mergedCal[d] = [...s];
+  });
+
+  return {
+    version: 1,
+    savedAt: new Date().toISOString(),
+    mergedFrom: [saveA.savedAt, saveB.savedAt],
+    fields: mergedFields,
+    rawEntries: mergedRawEntries,
+    entryCounter: maxId + 1,
+    contactData: mergedCal,
+  };
+}
+
+// ── DOWNLOAD ──────────────────────────────────────────────────
+function downloadMerged() {
+  if (pendingConflicts.size > 0) {
+    showStatus(`Please resolve ${pendingConflicts.size} conflict(s) first.`, false);
+    return;
+  }
+  const merged = buildMergedState();
+  const sponsor = (merged.fields.sponsor_name||'merged').toLowerCase().replace(/\s+/g,'-');
+  const dateStr = new Date().toISOString().slice(0,10);
+  const filename = `visa-evidence-save-${sponsor}-merged-${dateStr}.json`;
+
+  const blob = new Blob([JSON.stringify(merged, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
+
+  const totalEntries = Object.values(merged.rawEntries).flat().length;
+  const calDays = Object.keys(merged.contactData).length;
+  showStatus(`✓ Merged save downloaded — ${totalEntries} entries, ${calDays} calendar days.`, true);
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function escHtml(str) {
+  return (str||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function showStatus(msg, ok) {
+  const el = document.getElementById('status');
+  el.textContent = msg; el.className = ok ? 's-ok' : 's-err'; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 8000);
+}
+</script>
+</body>
+</html>
