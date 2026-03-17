@@ -957,7 +957,7 @@ class Handler(BaseHTTPRequestHandler):
             self.send_response(413);self._cors()
             self.send_header("Content-Type","text/plain")
             self.end_headers()
-            self.wfile.write(b"Payload too large — please reduce the number or size of images and try again.")
+            self.wfile.write(b"Payload too large - please reduce the number or size of images and try again.")
             return
         body = self.rfile.read(length)
         print(f"[server] Received {len(body)/1024:.1f}KB")
