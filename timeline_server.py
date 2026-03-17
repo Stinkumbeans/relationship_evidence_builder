@@ -952,6 +952,13 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self):
         if self.path!="/generate":self.send_error(404);return
         length = int(self.headers.get("Content-Length",0))
+        # Reject requests over 20MB to prevent memory crashes
+        if length > 20 * 1024 * 1024:
+            self.send_response(413);self._cors()
+            self.send_header("Content-Type","text/plain")
+            self.end_headers()
+            self.wfile.write(b"Payload too large — please reduce the number or size of images and try again.")
+            return
         body = self.rfile.read(length)
         print(f"[server] Received {len(body)/1024:.1f}KB")
         try:
