@@ -112,9 +112,17 @@ input[type=file]{display:none;}
 
 <div class="hdr">
   <div class="hdr-in">
-    <div class="eyebrow">UK Family Visa · Evidence Builder</div>
-    <h1>Merge <span class="h1em">Save Files</span></h1>
-    <p class="subhd">Combine two save files from different devices — entries, calendar data and statements are merged automatically</p>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:20px;flex-wrap:wrap;">
+      <div>
+        <div class="eyebrow">UK Family Visa · Evidence Builder</div>
+        <h1>Merge <span class="h1em">Save Files</span></h1>
+        <p class="subhd">Combine two save files from different devices — entries, calendar data and statements are merged automatically</p>
+      </div>
+      <a href="/" style="display:inline-flex;align-items:center;gap:7px;margin-top:6px;padding:9px 16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.15);border-radius:4px;color:#C8A96E;font-size:13px;font-weight:500;text-decoration:none;white-space:nowrap;transition:all .2s;"
+         onmouseover="this.style.background='rgba(255,255,255,.14)'" onmouseout="this.style.background='rgba(255,255,255,.08)'">
+        ← Back to Evidence Builder
+      </a>
+    </div>
   </div>
 </div>
 
@@ -194,7 +202,10 @@ input[type=file]{display:none;}
 </div>
 
 <div class="gen-bar">
-  <div class="bar-info" id="bar-info">Load two save files to begin</div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <a href="/" class="btn-sec" style="text-decoration:none">← Evidence Builder</a>
+    <div class="bar-info" id="bar-info">Load two save files to begin</div>
+  </div>
   <div style="display:flex;gap:8px;">
     <button class="btn-sec" id="reset-btn" onclick="resetAll()" style="display:none">↺ Start over</button>
     <button class="btn-merge" id="merge-btn" onclick="downloadMerged()" disabled>⬇ Download merged save</button>
