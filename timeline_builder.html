@@ -171,6 +171,54 @@ textarea.tall{min-height:130px;}
 .char-cnt{position:absolute;bottom:6px;right:8px;font-size:10px;color:var(--fnt);}
 .char-cnt.low{color:var(--red);}
 
+/* COLLAPSIBLE SECTIONS */
+.sec-hdr{display:flex;align-items:center;margin-bottom:10px;gap:10px;cursor:pointer;user-select:none;padding:6px 8px;border-radius:4px;transition:background .15s;}
+.sec-hdr:hover{background:rgba(0,0,0,.04);}
+.sec-toggle{font-size:11px;color:var(--fnt);margin-left:auto;transition:transform .2s;flex-shrink:0;}
+.sec-body{overflow:hidden;transition:opacity .2s;}
+.sec-body.collapsed{display:none;}
+
+/* CALENDAR TAB */
+.cal-import-area{border:2px dashed var(--bd);border-radius:6px;padding:28px;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);}
+.cal-import-area:hover,.cal-import-area.drag{border-color:var(--grn);background:var(--gbg2);}
+.cal-legend{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+.cal-leg-item{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;padding:5px 10px;border-radius:4px;border:1.5px solid var(--border);}
+.cal-leg-dot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+.cal-year-label{font-size:16px;color:var(--mut);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);font-family:'Playfair Display',serif;}
+.cal-months-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;}
+.cal-month-card{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:10px;}
+.cal-month-name{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--gold);font-weight:600;margin-bottom:8px;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-dow{font-size:8px;color:var(--fnt);text-align:center;padding:2px 0;font-weight:600;}
+.cal-day{aspect-ratio:1;border-radius:2px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:8px;color:var(--mut);font-weight:500;transition:transform .1s;}
+.cal-day:hover:not(.cal-empty){transform:scale(1.2);z-index:2;}
+.cal-day.cal-empty{cursor:default;}
+.cal-day.cal-today{outline:2px solid var(--gold);outline-offset:1px;}
+.cal-day.cal-has-contact{color:white!important;}
+.cal-day.cal-video    {background:#1E7B8A;}
+.cal-day.cal-sms      {background:#4A7FA5;}
+.cal-day.cal-call     {background:#7B5EA7;}
+.cal-day.cal-inperson {background:#A07830;}
+.cal-day.cal-mixed    {background:#2E7D5E;}
+.hm-wrap{overflow-x:auto;padding-bottom:4px;}
+.hm-grid{display:flex;gap:2px;align-items:flex-start;}
+.hm-col{display:flex;flex-direction:column;gap:2px;}
+.hm-cell{width:11px;height:11px;border-radius:2px;cursor:pointer;transition:transform .1s;position:relative;}
+.hm-cell:hover{transform:scale(1.5);z-index:2;}
+.hm-empty-cell{background:transparent;cursor:default;width:11px;height:11px;}
+.hm-0{background:rgba(0,0,0,.06);}
+.hm-video{background:#1E7B8A;}.hm-sms{background:#4A7FA5;}.hm-call{background:#7B5EA7;}
+.hm-inperson{background:#A07830;}.hm-mixed{background:#2E7D5E;}
+.hm-month-labels{display:flex;gap:2px;margin-bottom:3px;padding-left:22px;}
+.hm-month-lbl{font-size:8px;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;}
+.hm-dow-labels{display:flex;flex-direction:column;gap:2px;margin-right:3px;}
+.hm-dow-lbl{font-size:8px;color:var(--fnt);height:11px;display:flex;align-items:center;}
+.cal-stat-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:10px;margin-bottom:16px;}
+.cal-stat-box{background:var(--card);border:1px solid var(--border);border-radius:5px;padding:12px;text-align:center;}
+.cal-stat-num{font-size:26px;font-family:'Playfair Display',serif;color:var(--text);line-height:1;}
+.cal-stat-lbl{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--mut);margin-top:3px;}
+#cal-tooltip{position:fixed;background:var(--text);color:#F5F0E8;font-size:10px;padding:5px 9px;border-radius:4px;pointer-events:none;z-index:9999;display:none;white-space:nowrap;line-height:1.5;}
+
 @media(max-width:600px){.grid2,.grid3,.weakness-grid{grid-template-columns:1fr;}}
 </style>
 </head>
@@ -190,6 +238,7 @@ textarea.tall{min-height:130px;}
   <div class="tab" onclick="showTab('timeline')">③ Timeline & Evidence</div>
   <div class="tab" onclick="showTab('checker')">④ Weakness Checker</div>
   <div class="tab" onclick="showTab('index')">⑤ Evidence Index</div>
+  <div class="tab" onclick="showTab('calendar')">📅 Contact Calendar</div>
 </div></div>
 
 <div class="page">
@@ -361,6 +410,125 @@ textarea.tall{min-height:130px;}
   </div>
 </div>
 
+<!-- ══ TAB 6: CONTACT CALENDAR ════════════════════════════════ -->
+<div class="tab-panel" id="tab-calendar">
+  <div class="notice">
+    <strong>Contact Calendar:</strong> Log daily communication with the applicant — WhatsApp, Signal, video calls, voice calls, in-person visits. This data is included as a <em>Communication Record</em> section in the main PDF: a heatmap per year and a monthly summary table. No separate PDF needed.
+  </div>
+
+  <div style="display:flex;gap:8px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0;">
+    <button class="tab" id="caltab-import"  onclick="showCalTab('import')"  style="border-bottom:2px solid var(--grn);color:var(--grn)">📥 Import</button>
+    <button class="tab" id="caltab-manual"  onclick="showCalTab('manual')"  style="border-bottom:2px solid transparent">✏️ Manual</button>
+    <button class="tab" id="caltab-calview" onclick="showCalTab('calview')" style="border-bottom:2px solid transparent">📅 Calendar</button>
+    <button class="tab" id="caltab-heatmap" onclick="showCalTab('heatmap')" style="border-bottom:2px solid transparent">🔥 Heatmap</button>
+    <button class="tab" id="caltab-stats"   onclick="showCalTab('stats')"   style="border-bottom:2px solid transparent">📊 Stats</button>
+  </div>
+
+  <!-- IMPORT -->
+  <div id="calcontent-import">
+    <div class="card">
+      <div class="card-title">Import Chat / Call History</div>
+      <div class="notice">Select your platform, then drop or browse for your export file. WhatsApp and Signal exports automatically detect call types. You can import from multiple platforms — dates are merged.</div>
+      <div class="field" style="max-width:320px;margin-bottom:14px;">
+        <label>Platform</label>
+        <select id="cal_platform" onchange="calUpdateHint()">
+          <option value="whatsapp">💬 WhatsApp</option>
+          <option value="signal">🔒 Signal</option>
+          <option value="discord">🎮 Discord</option>
+          <option value="calllog">📞 Phone Call Log (CSV)</option>
+          <option value="auto">🔍 Auto-detect</option>
+        </select>
+      </div>
+      <div class="notice" id="cal_platform_hint" style="margin-bottom:12px;"></div>
+      <div class="cal-import-area" id="cal_dropzone"
+           onclick="document.getElementById('cal_file_input').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="calHandleDrop(event)">
+        <div style="font-size:28px;margin-bottom:8px" id="cal_import_icon">💬</div>
+        <div style="font-size:14px;font-weight:600;margin-bottom:5px">Drop your export file here</div>
+        <div style="font-size:12px;color:var(--mut)">or click to browse · .txt, .csv accepted</div>
+        <div style="margin-top:8px;font-size:12px;color:var(--grn);font-weight:500" id="cal_import_result"></div>
+      </div>
+      <input type="file" id="cal_file_input" accept=".txt,.csv" style="display:none" onchange="calParseFile(this.files[0],document.getElementById('cal_platform').value)">
+      <div style="margin-top:16px;font-size:12px;color:var(--mut);line-height:1.8" id="cal_export_instructions"></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Import Summary</div>
+      <div id="cal_import_summary" style="font-size:12px;color:var(--mut)">No files imported yet.</div>
+    </div>
+  </div>
+
+  <!-- MANUAL -->
+  <div id="calcontent-manual" style="display:none">
+    <div class="card">
+      <div class="card-title">Add Contact Days Manually</div>
+      <div class="notice">Use this for video calls, in-person visits, or any contact not in an exported file.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end;margin-bottom:10px;">
+        <div class="field"><label>Date</label><input type="date" id="cal_manual_date"></div>
+        <div class="field"><label>Contact type</label>
+          <select id="cal_manual_type">
+            <option value="video">📹 Video Call</option>
+            <option value="sms">💬 Message / Chat</option>
+            <option value="call">📞 Voice Call</option>
+            <option value="inperson">🤝 In Person</option>
+          </select>
+        </div>
+        <button class="btn-add" onclick="calAddManualDay()" style="width:auto;padding:8px 18px">+ Add</button>
+      </div>
+      <div style="font-size:11px;color:var(--mut)">If multiple types on the same day, add each separately — it shows as "Mixed".</div>
+      <div style="margin-top:18px;">
+        <div class="card-title">Bulk Add Range</div>
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+          <label style="font-size:12px;color:var(--mut)">From</label>
+          <input type="month" id="cal_bulk_from" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:4px;font-family:inherit;font-size:13px;">
+          <label style="font-size:12px;color:var(--mut)">To</label>
+          <input type="month" id="cal_bulk_to" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:4px;font-family:inherit;font-size:13px;">
+          <select id="cal_bulk_type" style="padding:6px 10px;border:1.5px solid var(--border);border-radius:4px;font-family:inherit;font-size:13px;">
+            <option value="sms">💬 Message / Chat</option>
+            <option value="video">📹 Video Call</option>
+            <option value="call">📞 Voice Call</option>
+          </select>
+          <button class="btn-add" onclick="calBulkAdd()" style="width:auto;padding:8px 18px">Add All Days</button>
+        </div>
+        <div style="font-size:11px;color:var(--mut)">Useful for long periods of daily contact.</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Logged Days <span id="cal_manual_count" style="font-size:12px;font-weight:400;color:var(--mut)"></span></div>
+      <div id="cal_manual_list" style="font-size:12px;color:var(--mut);max-height:320px;overflow-y:auto;"></div>
+    </div>
+  </div>
+
+  <!-- CALENDAR VIEW -->
+  <div id="calcontent-calview" style="display:none">
+    <div class="cal-legend" id="cal_legend">
+      <div class="cal-leg-item" style="background:#EAF6F8;border-color:#1E7B8A;color:#1E7B8A"><div class="cal-leg-dot" style="background:#1E7B8A"></div>Video Call</div>
+      <div class="cal-leg-item" style="background:#EEF4FA;border-color:#4A7FA5;color:#4A7FA5"><div class="cal-leg-dot" style="background:#4A7FA5"></div>Message/Chat</div>
+      <div class="cal-leg-item" style="background:#F4F0FA;border-color:#7B5EA7;color:#7B5EA7"><div class="cal-leg-dot" style="background:#7B5EA7"></div>Voice Call</div>
+      <div class="cal-leg-item" style="background:#FDF8F0;border-color:#A07830;color:#A07830"><div class="cal-leg-dot" style="background:#A07830"></div>In Person</div>
+      <div class="cal-leg-item" style="background:#F0FAF5;border-color:#2E7D5E;color:#2E7D5E"><div class="cal-leg-dot" style="background:#2E7D5E"></div>Mixed</div>
+    </div>
+    <div id="cal_calendar_view"></div>
+  </div>
+
+  <!-- HEATMAP -->
+  <div id="calcontent-heatmap" style="display:none">
+    <div class="card">
+      <div class="card-title">Annual Contact Heatmap</div>
+      <div class="notice">Each cell = one day. Colour shows contact type. Hover for date. Included in the PDF automatically.</div>
+      <div id="cal_heatmap_view"></div>
+    </div>
+  </div>
+
+  <!-- STATS -->
+  <div id="calcontent-stats" style="display:none">
+    <div id="cal_stats_view"></div>
+  </div>
+</div>
+
+<div id="cal-tooltip"></div>
+
 <div id="status"></div>
 </div><!-- /page -->
 
@@ -411,10 +579,12 @@ function showTab(id){
   document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.getElementById('tab-'+id).classList.add('active');
-  const tabs=['about','statements','timeline','checker','index'];
-  document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('active');
+  const tabs=['about','statements','timeline','checker','index','calendar'];
+  const idx=tabs.indexOf(id);
+  if(idx>=0) document.querySelectorAll('.tab')[idx].classList.add('active');
   if(id==='checker') runWeaknessCheck();
   if(id==='index') liveUpdate();
+  if(id==='calendar') calRenderActive();
 }
 
 // ── CHAR COUNTER ──────────────────────────────────────────────
@@ -1028,6 +1198,7 @@ function collectData(){
     wit_rel:    g('wit_rel'),
     wit_summary:g('wit_summary'),
     entries: collectEntries(),
+    contactData: calSerialise(),
   };
 }
 function g(id){return(document.getElementById(id)?.value||'').trim();}
@@ -1122,7 +1293,7 @@ function saveState(){
     });
   });
 
-  const state={version:1,savedAt:new Date().toISOString(),fields,rawEntries,entryCounter:ec};
+  const state={version:1,savedAt:new Date().toISOString(),fields,rawEntries,entryCounter:ec,contactData:calSerialise()};
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -1210,6 +1381,7 @@ function loadState(event){
       });
 
       updTotal();liveUpdate();runWeaknessCheck();
+      if(state.contactData) calDeserialise(state.contactData);
       showStatus(`✓ Save file loaded — ${Object.values(state.rawEntries).flat().length} entries restored.`,true);
     }catch(err){
       showStatus('Could not load save file — make sure you selected the correct .json file.',false);
@@ -1399,16 +1571,411 @@ async function downloadZip(){
 
 
 // ── BUILD SECTIONS ─────────────────────────────────────────────
+const _secCollapsed = {};
+function toggleSection(typeId){
+  _secCollapsed[typeId] = !_secCollapsed[typeId];
+  const body = document.getElementById(`sec_body_${typeId}`);
+  const icon = document.getElementById(`sec_toggle_${typeId}`);
+  body.classList.toggle('collapsed', _secCollapsed[typeId]);
+  icon.textContent = _secCollapsed[typeId] ? '▶' : '▼';
+  try{ localStorage.setItem('sec_collapsed', JSON.stringify(_secCollapsed)); }catch(e){}
+}
+// Restore collapsed state
+try{
+  const saved = JSON.parse(localStorage.getItem('sec_collapsed')||'{}');
+  Object.assign(_secCollapsed, saved);
+}catch(e){}
+
 const container=document.getElementById('allSections');
 TYPES.forEach(type=>{
   const s=document.createElement('div');s.className='entries-sec';
   const hint=type.id==='gap'?'<span style="font-size:11px;color:var(--mut);margin-left:8px">Use this to explain periods with little contact evidence</span>':'';
-  s.innerHTML=`<div class="sec-hdr"><div class="dot" style="background:${type.color}"></div><span class="sec-lbl">${type.icon} ${type.label}</span><span class="sec-cnt" id="count_${type.id}">0</span>${hint}</div><div id="entries_${type.id}"></div><button class="btn-add" onclick="addEntry('${type.id}')">+ Add entry</button>`;
+  const collapsed = _secCollapsed[type.id];
+  s.innerHTML=`
+    <div class="sec-hdr" onclick="toggleSection('${type.id}')">
+      <div class="dot" style="background:${type.color}"></div>
+      <span class="sec-lbl">${type.icon} ${type.label}</span>
+      <span class="sec-cnt" id="count_${type.id}">0</span>
+      ${hint}
+      <span class="sec-toggle" id="sec_toggle_${type.id}">${collapsed?'▶':'▼'}</span>
+    </div>
+    <div class="sec-body${collapsed?' collapsed':''}" id="sec_body_${type.id}">
+      <div id="entries_${type.id}"></div>
+      <button class="btn-add" onclick="addEntry('${type.id}')">+ Add entry</button>
+    </div>`;
   container.appendChild(s);
 });
 
+
+// ── CONTACT CALENDAR ──────────────────────────────────────────
+// contactData: { 'YYYY-MM-DD': Set<type> }
+let contactData = {};
+const CAL_TYPE_META = {
+  video:    { label:'Video Call',   icon:'📹', color:'#1E7B8A', cls:'cal-video'    },
+  sms:      { label:'Message/Chat', icon:'💬', color:'#4A7FA5', cls:'cal-sms'      },
+  call:     { label:'Voice Call',   icon:'📞', color:'#7B5EA7', cls:'cal-call'     },
+  inperson: { label:'In Person',    icon:'🤝', color:'#A07830', cls:'cal-inperson' },
+  mixed:    { label:'Mixed',        icon:'✨', color:'#2E7D5E', cls:'cal-mixed'    },
+};
+const CAL_MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const CAL_DAYS_SHORT=['Su','Mo','Tu','We','Th','Fr','Sa'];
+let _calActiveTab='import';
+let _calImportLog=[];
+
+function calSerialise(){
+  const out={};
+  Object.entries(contactData).forEach(([k,v])=>out[k]=[...v]);
+  return out;
+}
+function calDeserialise(raw){
+  contactData={};
+  Object.entries(raw||{}).forEach(([k,v])=>contactData[k]=new Set(v));
+  calUpdateTotal();
+}
+
+function showCalTab(id){
+  ['import','manual','calview','heatmap','stats'].forEach(t=>{
+    document.getElementById(`calcontent-${t}`).style.display = t===id?'':'none';
+    const btn=document.getElementById(`caltab-${t}`);
+    if(btn){
+      btn.style.color = t===id?'var(--grn)':'var(--mut)';
+      btn.style.borderBottom = t===id?'2px solid var(--grn)':'2px solid transparent';
+    }
+  });
+  _calActiveTab=id;
+  if(id==='calview') calRenderCalendar();
+  if(id==='heatmap') calRenderHeatmap();
+  if(id==='stats')   calRenderStats();
+}
+
+function calRenderActive(){
+  if(_calActiveTab==='calview') calRenderCalendar();
+  if(_calActiveTab==='heatmap') calRenderHeatmap();
+  if(_calActiveTab==='stats')   calRenderStats();
+  calUpdateHint();
+}
+
+function calAddDay(ds, type){
+  if(!contactData[ds]) contactData[ds]=new Set();
+  contactData[ds].add(type);
+  calUpdateTotal();
+}
+function calRemoveDay(ds, type){
+  if(!contactData[ds]) return;
+  if(type){ contactData[ds].delete(type); if(!contactData[ds].size) delete contactData[ds]; }
+  else delete contactData[ds];
+  calUpdateTotal();
+}
+function calGetDayClass(ds){
+  const types=contactData[ds];
+  if(!types||!types.size) return null;
+  if(types.size>1) return 'cal-mixed';
+  return 'cal-'+[...types][0];
+}
+function calUpdateTotal(){
+  const n=Object.keys(contactData).length;
+  const el=document.getElementById('cal_manual_count');
+  if(el) el.textContent=`(${n} days)`;
+  calRenderManualList();
+}
+
+// MANUAL
+function calAddManualDay(){
+  const d=document.getElementById('cal_manual_date').value;
+  const t=document.getElementById('cal_manual_type').value;
+  if(!d){showStatus('Please select a date.',false);return;}
+  calAddDay(d,t);
+  showStatus(`✓ Added ${d} as ${CAL_TYPE_META[t].label}`,true);
+}
+function calBulkAdd(){
+  const from=document.getElementById('cal_bulk_from').value;
+  const to=document.getElementById('cal_bulk_to').value;
+  const type=document.getElementById('cal_bulk_type').value;
+  if(!from||!to){showStatus('Please select both From and To months.',false);return;}
+  const start=new Date(from+'-01'), end=new Date(to+'-01');
+  end.setMonth(end.getMonth()+1);
+  let count=0;
+  for(let d=new Date(start);d<end;d.setDate(d.getDate()+1)){
+    calAddDay(d.toISOString().slice(0,10),type); count++;
+  }
+  showStatus(`✓ Added ${count} days (${CAL_TYPE_META[type].label})`,true);
+}
+function calRenderManualList(){
+  const list=document.getElementById('cal_manual_list');
+  if(!list) return;
+  const sorted=Object.keys(contactData).sort().reverse();
+  if(!sorted.length){list.innerHTML='<span style="color:var(--fnt)">No days logged yet.</span>';return;}
+  list.innerHTML=sorted.slice(0,200).map(d=>{
+    const types=[...contactData[d]];
+    const icons=types.map(t=>CAL_TYPE_META[t]?.icon||'').join(' ');
+    const labels=types.map(t=>CAL_TYPE_META[t]?.label||t).join(', ');
+    return `<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);">
+      <span>${icons} <b>${d}</b> — ${labels}</span>
+      <button onclick="calRemoveDay('${d}');calRenderManualList();calUpdateTotal();" style="background:none;border:none;cursor:pointer;color:var(--fnt);font-size:13px;padding:0 4px;">×</button>
+    </div>`;
+  }).join('')+(sorted.length>200?`<div style="color:var(--fnt);padding:6px 0">...and ${sorted.length-200} more</div>`:'');
+}
+
+// IMPORT PARSERS
+const CAL_PLATFORM_HINTS={
+  whatsapp:{icon:'💬',hint:'<strong>WhatsApp:</strong> Open chat → ⋮ → More → Export Chat → Without Media.',steps:`<b>Android:</b> Open chat → ⋮ menu → More → Export Chat → Without Media<br><b>iPhone:</b> Open chat → contact name → Export Chat → Without Media<br><b>Format:</b> M/D/YY, HH:MM - Name: message · <b>Calls:</b> "Voice call", "Video call" detected`},
+  signal:{icon:'🔒',hint:'<strong>Signal:</strong> Use Signal desktop → File → Export → Messages.',steps:`<b>Signal Desktop:</b> File menu → Export → Messages<br><b>Format:</b> [YYYY-MM-DD HH:MM:SS] Name: message · <b>Calls:</b> "Outgoing call", "Incoming call" detected`},
+  discord:{icon:'🎮',hint:'<strong>Discord:</strong> Use DiscordChatExporter (github.com/Tyrrrz/DiscordChatExporter) → export as .txt.',steps:`<b>Format:</b> [M/DD/YYYY H:MM AM/PM] Username`},
+  calllog:{icon:'📞',hint:'<strong>Call Log CSV:</strong> Android: "Call Log Backup & Restore" app. iPhone: iMazing.',steps:`<b>Android:</b> "Call Log Backup & Restore" from Play Store → export CSV<br><b>iPhone:</b> iMazing → Call History → Export CSV`},
+  auto:{icon:'🔍',hint:'<strong>Auto-detect:</strong> Tries WhatsApp, Signal, Discord, CSV formats in order.',steps:'Use this if unsure of format.'},
+};
+function calUpdateHint(){
+  const p=document.getElementById('cal_platform')?.value||'whatsapp';
+  const meta=CAL_PLATFORM_HINTS[p];
+  if(!meta) return;
+  const hint=document.getElementById('cal_platform_hint');
+  const inst=document.getElementById('cal_export_instructions');
+  const icon=document.getElementById('cal_import_icon');
+  if(hint) hint.innerHTML=meta.hint;
+  if(inst) inst.innerHTML=meta.steps;
+  if(icon) icon.textContent=meta.icon;
+}
+function calHandleDrop(e){
+  e.preventDefault();
+  document.getElementById('cal_dropzone').classList.remove('drag');
+  const f=e.dataTransfer.files[0];
+  if(f) calParseFile(f,document.getElementById('cal_platform').value);
+}
+function calParseFile(file,platform){
+  if(!file) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const text=e.target.result;
+    let added=0;
+    if(platform==='whatsapp') added=calParseWhatsApp(text);
+    else if(platform==='signal') added=calParseSignal(text);
+    else if(platform==='discord') added=calParseDiscord(text);
+    else if(platform==='calllog') added=calParseCallLog(text);
+    else added=calParseAuto(text);
+    _calImportLog.push({platform,filename:file.name,added,time:new Date().toLocaleTimeString()});
+    const res=document.getElementById('cal_import_result');
+    if(res) res.textContent=added>0?`✓ ${added} contact days imported`:'No dates found — check format matches platform';
+    showStatus(`✓ Imported ${added} days from ${platform}`,true);
+    calUpdateTotal();
+    calRenderImportSummary();
+  };
+  reader.readAsText(file);
+}
+function calParseWhatsApp(text){
+  let count=0; const seen=new Set();
+  for(const line of text.split('\n')){
+    const m=line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}),/);
+    if(!m) continue;
+    const ds=`20${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+    if(isNaN(new Date(ds))||seen.has(ds)) continue;
+    seen.add(ds);
+    const lower=line.toLowerCase();
+    if(lower.includes('video call')) calAddDay(ds,'video');
+    else if(lower.includes('voice call')||lower.includes('missed call')||lower.includes('audio call')) calAddDay(ds,'call');
+    else calAddDay(ds,'sms');
+    count++;
+  }
+  return count;
+}
+function calParseSignal(text){
+  let count=0; const seen=new Set();
+  for(const line of text.split('\n')){
+    const m=line.match(/^\[(\d{4})-(\d{2})-(\d{2})\s/);
+    if(!m) continue;
+    const ds=`${m[1]}-${m[2]}-${m[3]}`;
+    if(isNaN(new Date(ds))||seen.has(ds)) continue;
+    seen.add(ds);
+    const lower=line.toLowerCase();
+    if(lower.includes('outgoing call')||lower.includes('incoming call')||lower.includes('missed call')) calAddDay(ds,'call');
+    else calAddDay(ds,'sms');
+    count++;
+  }
+  return count;
+}
+function calParseDiscord(text){
+  let count=0; const seen=new Set();
+  for(const line of text.split('\n')){
+    const m=line.match(/\[(\d{1,2})\/(\d{1,2})\/(\d{4})\s/);
+    if(!m) continue;
+    const ds=`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
+    if(isNaN(new Date(ds))||seen.has(ds)) continue;
+    seen.add(ds); calAddDay(ds,'sms'); count++;
+  }
+  return count;
+}
+function calParseCallLog(text){
+  let count=0; const seen=new Set();
+  for(const line of text.split('\n')){
+    const m=line.match(/(\d{4}-\d{2}-\d{2})/);
+    if(!m) continue;
+    const ds=m[1];
+    if(isNaN(new Date(ds))||seen.has(ds)) continue;
+    seen.add(ds); calAddDay(ds,'call'); count++;
+  }
+  return count;
+}
+function calParseAuto(text){
+  let added=calParseWhatsApp(text);
+  if(added>0) return added;
+  added=calParseSignal(text);
+  if(added>0) return added;
+  added=calParseDiscord(text);
+  if(added>0) return added;
+  return calParseCallLog(text);
+}
+function calRenderImportSummary(){
+  const el=document.getElementById('cal_import_summary');
+  if(!el) return;
+  el.innerHTML=_calImportLog.map(l=>
+    `<div style="padding:5px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;">
+      <span>${CAL_PLATFORM_HINTS[l.platform]?.icon||'📁'} <b>${l.filename}</b> — ${l.platform}</span>
+      <span style="color:var(--grn);font-weight:600">${l.added} days · ${l.time}</span>
+    </div>`
+  ).join('')+`<div style="padding:6px 0;font-weight:600">Total: ${Object.keys(contactData).length} contact days logged</div>`;
+}
+
+// CALENDAR VIEW
+function calRenderCalendar(){
+  const container=document.getElementById('cal_calendar_view');
+  if(!container) return;
+  const dates=Object.keys(contactData).sort();
+  if(!dates.length){container.innerHTML='<div class="notice">No contact days logged yet. Use Import or Manual Entry to add data.</div>';return;}
+  const years=[...new Set(dates.map(d=>d.slice(0,4)))].sort();
+  let html='';
+  const today=new Date().toISOString().slice(0,10);
+  years.forEach(yr=>{
+    html+=`<div class="cal-year-label">${yr}</div><div class="cal-months-grid">`;
+    for(let m=1;m<=12;m++){
+      const firstDay=new Date(yr,m-1,1).getDay();
+      const daysIn=new Date(yr,m,0).getDate();
+      const hasData=[...Array(daysIn)].some((_,i)=>{
+        const ds=`${yr}-${String(m).padStart(2,'0')}-${String(i+1).padStart(2,'0')}`;
+        return contactData[ds];
+      });
+      if(!hasData&&parseInt(yr)<new Date().getFullYear()) continue;
+      html+=`<div class="cal-month-card"><div class="cal-month-name">${CAL_MONTHS[m-1]}</div><div class="cal-grid">`;
+      CAL_DAYS_SHORT.forEach(d=>html+=`<div class="cal-dow">${d}</div>`);
+      for(let i=0;i<firstDay;i++) html+=`<div class="cal-day cal-empty"></div>`;
+      for(let day=1;day<=daysIn;day++){
+        const ds=`${yr}-${String(m).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const cls=calGetDayClass(ds);
+        const isToday=ds===today;
+        html+=`<div class="cal-day${cls?' cal-has-contact '+cls:''}${isToday?' cal-today':''}" title="${ds}${cls?': '+([...contactData[ds]].map(t=>CAL_TYPE_META[t]?.label||t).join(', ')):''}">`;
+        html+=`${day}</div>`;
+      }
+      html+=`</div></div>`;
+    }
+    html+=`</div>`;
+  });
+  container.innerHTML=html;
+}
+
+// HEATMAP VIEW
+function calRenderHeatmap(){
+  const container=document.getElementById('cal_heatmap_view');
+  if(!container) return;
+  const dates=Object.keys(contactData).sort();
+  if(!dates.length){container.innerHTML='<div class="notice">No data yet.</div>';return;}
+  const years=[...new Set(dates.map(d=>d.slice(0,4)))].sort();
+  const tooltip=document.getElementById('cal-tooltip');
+  let html='';
+  years.forEach(yr=>{
+    const start=new Date(yr+'-01-01');
+    const end=new Date(yr+'-12-31');
+    // pad to Sunday
+    const startPad=new Date(start); startPad.setDate(startPad.getDate()-((startPad.getDay()+0)%7));
+    const weeks=[]; let week=[], d=new Date(startPad);
+    while(d<=end){
+      week.push(new Date(d));
+      if(d.getDay()===6){weeks.push(week);week=[];}
+      d.setDate(d.getDate()+1);
+    }
+    if(week.length) weeks.push(week);
+    // month labels
+    const monthLabels=new Array(weeks.length).fill('');
+    let lastMonth=-1;
+    weeks.forEach((wk,wi)=>{
+      const first=wk.find(d=>d>=start&&d<=end&&d.getDate()===1);
+      if(first&&first.getMonth()!==lastMonth){lastMonth=first.getMonth();monthLabels[wi]=CAL_MONTHS[first.getMonth()].slice(0,3);}
+    });
+    html+=`<div style="font-size:11px;color:var(--mut);margin-bottom:4px;font-weight:600">${yr}</div>`;
+    html+=`<div class="hm-wrap"><div style="display:flex;"><div class="hm-dow-labels">`;
+    ['','Mo','','We','','Fr',''].forEach(l=>html+=`<div class="hm-dow-lbl">${l}</div>`);
+    html+=`</div><div style="display:flex;flex-direction:column;"><div class="hm-month-labels">`;
+    monthLabels.forEach(l=>html+=`<div class="hm-month-lbl" style="min-width:13px">${l}</div>`);
+    html+=`</div><div class="hm-grid">`;
+    weeks.forEach(wk=>{
+      html+=`<div class="hm-col">`;
+      for(let ri=0;ri<7;ri++){
+        const day=wk[ri];
+        if(!day||day<start||day>end){html+=`<div class="hm-empty-cell"></div>`;continue;}
+        const ds=day.toISOString().slice(0,10);
+        const types=contactData[ds];
+        let cls='hm-0';
+        if(types&&types.size){
+          if(types.size>1) cls='hm-mixed';
+          else cls='hm-'+[...types][0];
+        }
+        const labels=types?[...types].map(t=>CAL_TYPE_META[t]?.label||t).join(', '):'No contact';
+        html+=`<div class="hm-cell ${cls}" data-ds="${ds}" data-lbl="${labels}" onmouseenter="calShowTip(event,this)" onmouseleave="calHideTip()"></div>`;
+      }
+      html+=`</div>`;
+    });
+    html+=`</div></div></div></div><br>`;
+  });
+  container.innerHTML=html;
+}
+function calShowTip(e,el){
+  const tip=document.getElementById('cal-tooltip');
+  if(!tip) return;
+  tip.innerHTML=`<b>${el.dataset.ds}</b><br>${el.dataset.lbl}`;
+  tip.style.display='block';
+  tip.style.left=(e.clientX+12)+'px'; tip.style.top=(e.clientY-8)+'px';
+}
+function calHideTip(){
+  const tip=document.getElementById('cal-tooltip');
+  if(tip) tip.style.display='none';
+}
+
+// STATS VIEW
+function calRenderStats(){
+  const container=document.getElementById('cal_stats_view');
+  if(!container) return;
+  const dates=Object.keys(contactData).sort();
+  if(!dates.length){container.innerHTML='<div class="notice">No data yet.</div>';return;}
+  const counts={video:0,sms:0,call:0,inperson:0};
+  Object.values(contactData).forEach(types=>types.forEach(t=>{if(counts[t]!==undefined)counts[t]++;}));
+  const total=dates.length;
+  let html=`<div class="cal-stat-grid">
+    <div class="cal-stat-box"><div class="cal-stat-num">${total}</div><div class="cal-stat-lbl">Total days</div></div>
+    <div class="cal-stat-box"><div class="cal-stat-num" style="color:#1E7B8A">${counts.video}</div><div class="cal-stat-lbl">Video calls</div></div>
+    <div class="cal-stat-box"><div class="cal-stat-num" style="color:#4A7FA5">${counts.sms}</div><div class="cal-stat-lbl">Messages</div></div>
+    <div class="cal-stat-box"><div class="cal-stat-num" style="color:#7B5EA7">${counts.call}</div><div class="cal-stat-lbl">Voice calls</div></div>
+    <div class="cal-stat-box"><div class="cal-stat-num" style="color:#A07830">${counts.inperson}</div><div class="cal-stat-lbl">In person</div></div>
+  </div>`;
+  // By-year breakdown
+  const byYear={};
+  dates.forEach(d=>{
+    const yr=d.slice(0,4);
+    if(!byYear[yr]) byYear[yr]={total:0,video:0,sms:0,call:0,inperson:0};
+    byYear[yr].total++;
+    contactData[d].forEach(t=>{if(byYear[yr][t]!==undefined)byYear[yr][t]++;});
+  });
+  html+=`<div class="card"><div class="card-title">By Year</div><table class="idx-tbl"><thead><tr><th>Year</th><th>Total</th><th>Video</th><th>Chat</th><th>Voice</th><th>In Person</th></tr></thead><tbody>`;
+  Object.entries(byYear).sort().forEach(([yr,v])=>{
+    html+=`<tr><td><b>${yr}</b></td><td>${v.total}</td><td style="color:#1E7B8A">${v.video}</td><td style="color:#4A7FA5">${v.sms}</td><td style="color:#7B5EA7">${v.call}</td><td style="color:#A07830">${v.inperson}</td></tr>`;
+  });
+  html+=`</tbody></table></div>`;
+  container.innerHTML=html;
+}
+
+// Init calendar
+calUpdateHint();
+calUpdateTotal();
+
 // Start checker
 runWeaknessCheck();
+
 </script>
 <div id="lightbox" onclick="this.classList.remove('open')">
   <img id="lightbox-img" src="" alt="Evidence preview">

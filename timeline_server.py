@@ -18,6 +18,10 @@ from reportlab.platypus import (
 )
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_RIGHT
+from reportlab.graphics.shapes import Drawing, Rect, String
+from reportlab.graphics import renderPDF
+from datetime import date as date_cls, timedelta
+from collections import defaultdict
 
 from PIL import Image as PILImage
 from pypdf import PdfReader, PdfWriter
@@ -338,6 +342,218 @@ def run_checks(entries, data):
         status)
 
     return results
+
+# ── COMMUNICATION RECORD HELPERS ─────────────────────────────
+CAL_TYPE_COLOURS = {
+    'video':    colors.HexColor('#1E7B8A'),
+    'sms':      colors.HexColor('#4A7FA5'),
+    'call':     colors.HexColor('#7B5EA7'),
+    'inperson': colors.HexColor('#A07830'),
+    'mixed':    colors.HexColor('#2E7D5E'),
+}
+CAL_TYPE_LABELS = {
+    'video':'Video Call','sms':'Message/Chat',
+    'call':'Voice Call','inperson':'In Person','mixed':'Mixed',
+}
+CAL_EMPTY = colors.HexColor('#EEECE8')
+CAL_MONTHS = ['January','February','March','April','May','June',
+              'July','August','September','October','November','December']
+
+def get_day_colour(types):
+    if not types: return CAL_EMPTY
+    if len(types) > 1: return CAL_TYPE_COLOURS['mixed']
+    return CAL_TYPE_COLOURS.get(list(types)[0], CAL_TYPE_COLOURS['mixed'])
+
+HM_CELL = 5.0*mm
+
+def draw_heatmap(contact_data, year):
+    """Compact GitHub-style heatmap for one year."""
+    start = date_cls(year, 1, 1)
+    end   = date_cls(year, 12, 31)
+    start_padded = start - timedelta(days=(start.weekday()+1)%7)
+
+    weeks = []
+    week  = []
+    d = start_padded
+    while d <= end:
+        week.append(d)
+        if d.weekday() == 5:
+            weeks.append(week); week = []
+        d += timedelta(days=1)
+    if week: weeks.append(week)
+
+    cols = len(weeks)
+    w_draw = cols * (HM_CELL+1) + 18*mm
+    h_draw = 7  * (HM_CELL+1) + 8*mm
+
+    dr = Drawing(w_draw, h_draw)
+
+    # Month labels
+    cur_month = -1
+    for wi, wk in enumerate(weeks):
+        first_in_month = next((d for d in wk if start <= d <= end and d.day == 1), None)
+        if first_in_month and first_in_month.month != cur_month:
+            cur_month = first_in_month.month
+            x = wi*(HM_CELL+1) + 18*mm
+            dr.add(String(x, h_draw-4.5*mm, CAL_MONTHS[cur_month-1][:3],
+                fontName='Helvetica-Bold', fontSize=5.5, fillColor=MUTED))
+
+    # DOW labels
+    for ri, lbl in enumerate(['Su','Mo','Tu','We','Th','Fr','Sa']):
+        y = h_draw - 8*mm - ri*(HM_CELL+1) - HM_CELL/2
+        dr.add(String(14*mm, y, lbl, fontName='Helvetica', fontSize=5,
+            fillColor=MUTED, textAnchor='end'))
+
+    # Cells
+    for wi, wk in enumerate(weeks):
+        for ri, d in enumerate(wk):
+            if d < start or d > end:
+                continue
+            ds = d.strftime('%Y-%m-%d')
+            types = set(contact_data.get(ds, []))
+            colour = get_day_colour(types)
+            x = wi*(HM_CELL+1) + 18*mm
+            y = h_draw - 8*mm - ri*(HM_CELL+1) - HM_CELL
+            dr.add(Rect(x, y, HM_CELL, HM_CELL,
+                fillColor=colour, strokeColor=None, rx=1, ry=1))
+
+    return dr
+
+def build_communication_section(story, contact_data_raw, W, st, section_header, hr):
+    """Append the Communication Record section to story."""
+    if not contact_data_raw:
+        return
+
+    contact_data = {k: set(v) for k, v in contact_data_raw.items()}
+    dates = sorted(contact_data.keys())
+    if not dates:
+        return
+
+    story.append(PageBreak())
+    story.append(section_header("COMMUNICATION RECORD"))
+    story.append(Spacer(1, 6))
+
+    # ── Stat strip ───────────────────────────────────────────
+    total = len(dates)
+    counts = defaultdict(int)
+    for types in contact_data.values():
+        for t in types:
+            counts[t] += 1
+    most_common = max(counts, key=counts.get) if counts else '—'
+    mc_label = CAL_TYPE_LABELS.get(most_common, most_common)
+
+    try:
+        d0 = date_cls.fromisoformat(dates[0])
+        d1 = date_cls.fromisoformat(dates[-1])
+        date_range = f"{d0.strftime('%-d %b %Y')} — {d1.strftime('%-d %b %Y')}"
+    except Exception:
+        date_range = f"{dates[0]} — {dates[-1]}"
+
+    stat_data = [
+        [Paragraph("<b>Total contact days</b>", mk_style("cs1", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Date range</b>",          mk_style("cs2", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Most frequent type</b>",  mk_style("cs3", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Video calls</b>",          mk_style("cs4", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Messages</b>",             mk_style("cs5", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Voice calls</b>",          mk_style("cs6", fontSize=8, textColor=MUTED, leading=11))],
+        [Paragraph(str(total),          mk_style("cv1", fontName="Helvetica-Bold", fontSize=14, textColor=DARK,  leading=18)),
+         Paragraph(date_range,          mk_style("cv2", fontName="Helvetica-Bold", fontSize=9,  textColor=DARK,  leading=13)),
+         Paragraph(mc_label,            mk_style("cv3", fontName="Helvetica-Bold", fontSize=10, textColor=GOLD,  leading=14)),
+         Paragraph(str(counts['video']),mk_style("cv4", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['video'],  leading=18)),
+         Paragraph(str(counts['sms']),  mk_style("cv5", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['sms'],   leading=18)),
+         Paragraph(str(counts['call']), mk_style("cv6", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['call'],  leading=18))],
+    ]
+    col_w = W / 6
+    stat_tbl = Table(stat_data, colWidths=[col_w]*6)
+    stat_tbl.setStyle(TableStyle([
+        ("BACKGROUND",(0,0),(-1,-1), LT_BG),
+        ("BOX",(0,0),(-1,-1),0.5,BORDER),
+        ("LINEBELOW",(0,0),(-1,0),0.5,BORDER),
+        ("LEFTPADDING",(0,0),(-1,-1),10),("RIGHTPADDING",(0,0),(-1,-1),10),
+        ("TOPPADDING",(0,0),(-1,-1),8),("BOTTOMPADDING",(0,0),(-1,-1),8),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+    ]))
+    story.append(stat_tbl)
+    story.append(Spacer(1, 10))
+
+    # ── Legend ───────────────────────────────────────────────
+    leg_items = []
+    for t, c in CAL_TYPE_COLOURS.items():
+        swatch = Table([['']], colWidths=[6*mm], rowHeights=[4*mm],
+            style=[('BACKGROUND',(0,0),(0,0),c),
+                   ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0)])
+        leg_items.append([swatch,
+            Paragraph(CAL_TYPE_LABELS[t], mk_style(f"leg_{t}", fontSize=7.5, textColor=MUTED, leading=10))])
+    leg_tbl = Table([leg_items], colWidths=[18*mm]*len(leg_items))
+    leg_tbl.setStyle(TableStyle([
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("LEFTPADDING",(0,0),(-1,-1),2),("RIGHTPADDING",(0,0),(-1,-1),6),
+    ]))
+    story.append(leg_tbl)
+    story.append(Spacer(1, 8))
+
+    # ── Annual heatmaps ───────────────────────────────────────
+    years = sorted(set(d[:4] for d in dates))
+    for yr in years:
+        story.append(Paragraph(str(yr),
+            mk_style(f"yr_{yr}", fontName="Helvetica-Bold", fontSize=8,
+                     textColor=MUTED, leading=12, spaceBefore=4, spaceAfter=4)))
+        hm = draw_heatmap(contact_data_raw, int(yr))
+        scale = min(W / hm.width, 1.0)
+        hm.width  *= scale
+        hm.height *= scale
+        hm.transform = (scale, 0, 0, scale, 0, 0)
+        story.append(hm)
+        story.append(Spacer(1, 6))
+
+    # ── Monthly summary table ─────────────────────────────────
+    story.append(Spacer(1, 6))
+    story.append(hr(before=4, after=8))
+    story.append(Paragraph("MONTHLY SUMMARY",
+        mk_style("cal_mhdr", fontName="Helvetica-Bold", fontSize=7.5,
+                 textColor=MUTED, charSpace=2, leading=11, spaceAfter=6)))
+
+    by_month = defaultdict(lambda: defaultdict(int))
+    for ds, types in contact_data.items():
+        mon = ds[:7]
+        for t in types:
+            by_month[mon][t] += 1
+        by_month[mon]['total'] += 1
+
+    tbl_data = [[
+        Paragraph("<b>Month</b>",     mk_style("mth0", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+        Paragraph("<b>Total</b>",     mk_style("mth1", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+        Paragraph("<b>Video</b>",     mk_style("mth2", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+        Paragraph("<b>Chat</b>",      mk_style("mth3", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+        Paragraph("<b>Voice</b>",     mk_style("mth4", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+        Paragraph("<b>In Person</b>", mk_style("mth5", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+    ]]
+    for mon in sorted(by_month.keys()):
+        v = by_month[mon]
+        y2, m2 = mon.split('-')
+        label = f"{CAL_MONTHS[int(m2)-1][:3]} {y2}"
+        tbl_data.append([
+            Paragraph(label,          mk_style(f"ml{mon}",  fontSize=8,   textColor=TEXT,  leading=11)),
+            Paragraph(str(v['total']),mk_style(f"mt{mon}",  fontName="Helvetica-Bold", fontSize=8, textColor=DARK,  leading=11)),
+            Paragraph(str(v.get('video',0)),    mk_style(f"mv{mon}",  fontSize=8, textColor=CAL_TYPE_COLOURS['video'],    leading=11)),
+            Paragraph(str(v.get('sms',0)),      mk_style(f"ms{mon}",  fontSize=8, textColor=CAL_TYPE_COLOURS['sms'],     leading=11)),
+            Paragraph(str(v.get('call',0)),     mk_style(f"mc{mon}",  fontSize=8, textColor=CAL_TYPE_COLOURS['call'],    leading=11)),
+            Paragraph(str(v.get('inperson',0)), mk_style(f"mi{mon}",  fontSize=8, textColor=CAL_TYPE_COLOURS['inperson'],leading=11)),
+        ])
+
+    col_ws = [W*0.22, W*0.13, W*0.13, W*0.13, W*0.13, W*0.26]
+    mon_tbl = Table(tbl_data, colWidths=col_ws)
+    mon_tbl.setStyle(TableStyle([
+        ("BACKGROUND",(0,0),(-1,0),DARK),
+        ("ROWBACKGROUNDS",(0,1),(-1,-1),[LT_BG,WHITE]),
+        ("GRID",(0,0),(-1,-1),0.4,BORDER),
+        ("LEFTPADDING",(0,0),(-1,-1),7),("RIGHTPADDING",(0,0),(-1,-1),7),
+        ("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),
+        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+        ("ALIGN",(1,0),(-1,-1),"CENTER"),
+    ]))
+    story.append(mon_tbl)
+
 
 # ── BUILD PDF ─────────────────────────────────────────────────
 def build_pdf(data):
@@ -817,6 +1033,10 @@ def build_pdf(data):
             ]))
             story.append(tbl)
             story.append(Spacer(1,4))
+    # ── COMMUNICATION RECORD ─────────────────────────────────
+    contact_data_raw = data.get("contactData", {})
+    build_communication_section(story, contact_data_raw, W, st, section_header, hr)
+
     # ── EVIDENCE INDEX ────────────────────────────────────────
     story.append(PageBreak())
     story.append(section_header("EVIDENCE INDEX"))
