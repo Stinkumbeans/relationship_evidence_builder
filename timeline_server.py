@@ -1167,6 +1167,18 @@ class Handler(BaseHTTPRequestHandler):
                 self.wfile.write(html)
             except FileNotFoundError:
                 self.send_error(404, "timeline_builder.html not found")
+        elif self.path in ('/merge', '/merge_saves.html'):
+            try:
+                here = os.path.dirname(os.path.abspath(__file__))
+                with open(os.path.join(here, 'merge_saves.html'), 'rb') as f:
+                    html = f.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "text/html; charset=utf-8")
+                self.send_header("Content-Length", str(len(html)))
+                self.end_headers()
+                self.wfile.write(html)
+            except FileNotFoundError:
+                self.send_error(404, "merge_saves.html not found")
         else:
             self.send_error(404)
     def do_POST(self):
