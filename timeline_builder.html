@@ -1,0 +1,1414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relationship Timeline Builder</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%232E7D5E'/%3E%3Cpolyline points='6,17 13,24 26,8' stroke='white' stroke-width='4' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Source+Sans+3:wght@300;400;500;600&display=swap');
+:root {
+  --bg:#F4F2EE;--card:#FFFFFF;--border:#E0DBD3;--bd:#C4BBB0;
+  --gold:#8C6820;--gl:#B8975A;--gbg:#FDF8F0;
+  --text:#18160F;--mut:#5C5650;--fnt:#A8A098;
+  --grn:#2E7D5E;--gbg2:#F0FAF5;--red:#B94C39;--redbg:#FDF5F3;
+  --fl:#4A7FA5;--flbg:#EEF4FA;
+  --ac:#C5503A;--acbg:#FDF1EF;
+  --tr:#2E7D5E;--trbg:#EEF8F3;
+  --ph:#B07828;--phbg:#FBF5EA;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+select{font-size:13px;}
+.field select{font-size:13px;padding:8px 10px;border:1px solid var(--bd);border-radius:4px;background:#fff;color:var(--text);font-family:inherit;width:100%;height:38px;-webkit-appearance:none;-moz-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%237A7268' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center;padding-right:28px;cursor:pointer;}
+body{background:var(--bg);font-family:'Source Sans 3',Georgia,sans-serif;color:var(--text);min-height:100vh;font-size:14px;line-height:1.5;}
+.hdr{background:var(--text);padding:36px 28px 28px;position:relative;}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gl),transparent);}
+.hdr-in{max-width:900px;margin:0 auto;}
+.eyebrow{font-size:10px;letter-spacing:5px;color:var(--gl);text-transform:uppercase;margin-bottom:8px;}
+h1{font-family:'Playfair Display',serif;font-size:clamp(22px,4vw,32px);font-weight:400;color:#F5F0E8;line-height:1.15;margin-bottom:5px;}
+.h1em{font-style:italic;color:var(--gl);}
+.subhd{color:#6A6258;font-size:13px;font-weight:300;}
+
+/* TABS */
+.tab-bar{background:var(--text);border-top:1px solid #2A2820;max-width:none;display:flex;overflow-x:auto;}
+.tab-bar-in{max-width:900px;margin:0 auto;display:flex;width:100%;}
+.tab{padding:12px 20px;font-size:12px;font-weight:500;color:#6A6258;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .15s;letter-spacing:.3px;}
+.tab:hover{color:#C8A96E;}
+.tab.active{color:var(--gl);border-bottom-color:var(--gl);}
+
+.page{max-width:900px;margin:0 auto;padding:24px 20px 120px;}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:20px 22px;margin-bottom:16px;}
+.card-title{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);margin-bottom:14px;font-weight:600;}
+.card-subtitle{font-size:12px;color:var(--mut);line-height:1.6;margin-bottom:14px;padding-bottom:12px;border-bottom:1px solid var(--border);}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
+.field{display:flex;flex-direction:column;gap:5px;}
+.field label{font-size:12px;color:var(--mut);font-weight:600;letter-spacing:.2px;}
+.field input,.field select,.field textarea{font-size:13px;padding:8px 10px;border:1px solid var(--bd);border-radius:4px;background:#fff;color:var(--text);font-family:inherit;width:100%;}
+.field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--gold);box-shadow:0 0 0 2px rgba(140,104,32,.1);}
+.field .hint{font-size:10px;color:var(--fnt);margin-top:2px;font-style:italic;}
+input[type=text],input[type=date],input[type=number],select,textarea{
+  background:var(--bg);border:1px solid var(--bd);border-radius:4px;
+  color:var(--text);font-family:inherit;font-size:13px;padding:8px 10px;
+  outline:none;transition:border-color .15s,box-shadow .15s;width:100%;}
+input:focus,select:focus,textarea:focus{border-color:var(--gold);box-shadow:0 0 0 3px rgba(160,120,48,.1);}
+textarea{resize:vertical;min-height:80px;line-height:1.6;}
+textarea.tall{min-height:130px;}
+
+/* DATE PICKER */
+.date-wrap{position:relative;display:flex;align-items:center;}
+.date-wrap input{padding-right:32px;}
+.date-cal-btn{position:absolute;right:8px;background:none;border:none;cursor:pointer;font-size:15px;color:var(--mut);padding:0;line-height:1;transition:color .15s;}
+.date-cal-btn:hover{color:var(--gold);}
+.date-picker-popup{position:absolute;top:calc(100% + 4px);left:0;z-index:999;background:var(--card);border:1px solid var(--bd);border-radius:6px;box-shadow:0 4px 20px rgba(0,0,0,.12);padding:12px;width:240px;user-select:none;}
+.dp-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.dp-nav{background:none;border:none;cursor:pointer;color:var(--mut);font-size:16px;padding:2px 6px;border-radius:3px;transition:background .1s;}
+.dp-nav:hover{background:var(--border);color:var(--text);}
+.dp-month-label{font-size:13px;font-weight:600;color:var(--text);cursor:pointer;}
+.dp-month-label:hover{color:var(--gold);}
+.dp-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.dp-dow{font-size:9px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;color:var(--fnt);text-align:center;padding:2px 0 6px;}
+.dp-day{font-size:12px;text-align:center;padding:5px 2px;border-radius:3px;cursor:pointer;color:var(--text);transition:background .1s;}
+.dp-day:hover{background:var(--gbg);color:var(--gold);}
+.dp-day.today{font-weight:700;color:var(--gold);}
+.dp-day.selected{background:var(--gold);color:#fff;font-weight:700;}
+.dp-day.other-month{color:var(--fnt);}
+.dp-day.empty{cursor:default;}
+.dp-year-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;max-height:180px;overflow-y:auto;}
+.dp-year{font-size:12px;text-align:center;padding:6px 2px;border-radius:3px;cursor:pointer;color:var(--text);}
+.dp-year:hover{background:var(--gbg);color:var(--gold);}
+.dp-year.selected{background:var(--gold);color:#fff;font-weight:700;}
+.notice{background:var(--gbg);border:1px solid rgba(160,120,48,.3);border-left:3px solid var(--gold);border-radius:0 4px 4px 0;padding:12px 16px;font-size:12.5px;color:var(--mut);line-height:1.6;margin-bottom:16px;}
+.notice strong{color:var(--text);}
+.warn{background:var(--redbg);border:1px solid rgba(185,76,57,.3);border-left:3px solid var(--red);border-radius:0 4px 4px 0;padding:10px 14px;font-size:12px;color:var(--red);line-height:1.6;margin-bottom:10px;}
+
+/* WEAKNESS CHECKER */
+.weakness-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.wk-item{background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:12px 14px;position:relative;}
+.wk-item.ok{border-color:rgba(46,125,94,.4);background:var(--gbg2);}
+.wk-item.warn-item{border-color:rgba(185,76,57,.35);background:var(--redbg);}
+.wk-label{font-size:11.5px;font-weight:600;color:var(--text);margin-bottom:4px;display:flex;align-items:center;gap:7px;}
+.wk-status{font-size:16px;}
+.wk-desc{font-size:11px;color:var(--mut);line-height:1.5;}
+.wk-action{font-size:10.5px;color:var(--red);margin-top:5px;font-weight:500;}
+
+/* ENTRIES */
+.entries-sec{margin-bottom:16px;}
+.sec-hdr{display:flex;align-items:center;margin-bottom:10px;gap:10px;}
+.dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.sec-lbl{font-size:13px;font-weight:600;}
+.sec-cnt{font-size:11px;color:var(--fnt);background:var(--border);padding:2px 8px;border-radius:10px;}
+.entry-card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:14px 16px;margin-bottom:8px;position:relative;}
+.entry-card.flight{border-left:3px solid var(--fl);background:var(--flbg);}
+.entry-card.airbnb{border-left:3px solid var(--ac);background:var(--acbg);}
+.entry-card.transfer{border-left:3px solid var(--tr);background:var(--trbg);}
+.entry-card.photo{border-left:3px solid var(--ph);background:var(--phbg);}
+.entry-card.gap{border-left:3px solid var(--fnt);background:#F9F8F6;}
+.ref-badge{display:inline-block;font-size:10px;font-weight:700;font-family:'Courier New',monospace;background:var(--text);color:#F5F0E8;padding:2px 8px;border-radius:3px;margin-bottom:10px;letter-spacing:.5px;}
+.entry-rm{position:absolute;top:10px;right:12px;background:none;border:none;cursor:pointer;color:var(--fnt);font-size:16px;padding:2px 4px;border-radius:3px;transition:color .15s;}
+.entry-rm:hover{color:var(--red);}
+.att-row{margin-top:10px;padding-top:10px;border-top:1px solid rgba(0,0,0,.07);}
+.att-lbl{font-size:11px;color:var(--mut);font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:8px;}
+.att-list{display:flex;flex-direction:column;gap:8px;}
+.att-item{background:rgba(255,255,255,.85);border:1px solid var(--bd);border-radius:5px;padding:8px 10px;font-size:11px;}
+.att-item-top{display:flex;align-items:flex-start;gap:8px;}
+.att-thumb{width:52px;height:52px;object-fit:cover;border-radius:3px;border:1px solid var(--border);flex-shrink:0;cursor:pointer;}
+.att-thumb-pdf{width:52px;height:52px;background:var(--redbg);border:1px solid rgba(185,76,57,.3);border-radius:3px;display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0;font-size:9px;color:var(--red);font-weight:700;gap:2px;}
+.att-info{flex:1;min-width:0;}
+.att-fmt{display:inline-block;font-size:9px;padding:1px 5px;border-radius:2px;font-weight:700;color:white;margin-bottom:3px;}
+.att-desc{font-size:11px;color:var(--text);line-height:1.4;word-break:break-word;}
+.att-filename{font-size:10px;color:var(--fnt);font-style:italic;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.att-pages{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:10.5px;color:var(--mut);}
+.att-pages input{width:42px;padding:3px 5px;font-size:10.5px;text-align:center;}
+.att-rm{background:none;border:1px solid var(--border);border-radius:3px;cursor:pointer;color:var(--fnt);font-size:11px;padding:3px 7px;margin-top:6px;display:inline-flex;align-items:center;gap:4px;transition:all .15s;}
+.att-rm:hover{color:var(--red);border-color:var(--red);background:var(--redbg);}
+.att-size-warn{font-size:10px;color:var(--red);margin-top:3px;}
+.att-add-row{display:flex;gap:8px;margin-top:8px;}
+.att-add{background:none;border:1.5px dashed var(--bd);border-radius:3px;padding:6px 14px;font-size:11px;color:var(--mut);cursor:pointer;transition:all .15s;white-space:nowrap;font-family:inherit;display:flex;align-items:center;gap:5px;}
+.att-add:hover{border-color:var(--gold);color:var(--gold);}
+.att-file-input{display:none;}
+/* Lightbox */
+#lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out;}
+#lightbox.open{display:flex;}
+#lightbox img{max-width:90vw;max-height:90vh;border-radius:4px;box-shadow:0 8px 40px rgba(0,0,0,.6);}
+.btn-add{width:100%;padding:10px;border-radius:4px;border:1.5px dashed var(--bd);background:transparent;font-family:inherit;font-size:13px;cursor:pointer;transition:all .15s;color:var(--mut);display:flex;align-items:center;justify-content:center;gap:6px;}
+.btn-add:hover{border-color:var(--gold);color:var(--gold);background:var(--gbg);}
+
+/* INDEX PREVIEW */
+.idx-tbl{width:100%;border-collapse:collapse;font-size:12px;}
+.idx-tbl th{text-align:left;padding:7px 10px;font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mut);border-bottom:2px solid var(--border);font-weight:600;}
+.idx-tbl td{padding:7px 10px;border-bottom:1px solid var(--border);color:var(--text);vertical-align:top;}
+.idx-tbl tr:last-child td{border-bottom:none;}
+.ref-cell{font-family:'Courier New',monospace;font-weight:700;font-size:11px;white-space:nowrap;}
+.type-pill{display:inline-block;font-size:9px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap;}
+.afmt{display:inline-block;font-size:9px;background:var(--fnt);color:white;padding:1px 5px;border-radius:2px;font-weight:600;margin-right:3px;}
+.idx-empty{color:var(--fnt);font-size:12px;font-style:italic;padding:12px 0;}
+
+/* GENERATE BAR */
+.gen-bar{position:sticky;bottom:0;background:rgba(247,245,240,.97);backdrop-filter:blur(8px);border-top:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:14px;justify-content:space-between;}
+.bar-actions{display:flex;align-items:center;gap:8px;}
+.btn-save{padding:10px 18px;background:transparent;color:var(--text);border:1.5px solid var(--bd);border-radius:4px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;}
+.btn-save:hover{border-color:var(--gold);color:var(--gold);background:var(--gbg);}
+.btn-load{padding:10px 18px;background:transparent;color:var(--mut);border:1.5px solid var(--border);border-radius:4px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:6px;}
+.btn-load:hover{border-color:var(--gold);color:var(--gold);background:var(--gbg);}
+#loadInput{display:none;}
+.bar-info{display:flex;flex-direction:column;gap:2px;}
+.bar-info span{font-size:12px;color:var(--mut);}
+.bar-info strong{color:var(--text);}
+.btn-gen{padding:11px 26px;background:var(--text);color:#F5F0E8;border:none;border-radius:4px;font-family:inherit;font-size:13px;font-weight:500;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:8px;}
+.btn-gen:hover{background:#2A2820;}
+.btn-gen:disabled{opacity:.5;cursor:not-allowed;}
+#status{padding:10px 16px;border-radius:4px;font-size:13px;display:none;margin-bottom:12px;}
+.s-ok{background:var(--gbg2);color:var(--grn);border:1px solid rgba(46,125,94,.3);}
+.s-err{background:var(--redbg);color:var(--red);border:1px solid rgba(185,76,57,.3);}
+
+/* CHAR COUNTER */
+.char-wrap{position:relative;}
+.char-cnt{position:absolute;bottom:6px;right:8px;font-size:10px;color:var(--fnt);}
+.char-cnt.low{color:var(--red);}
+
+@media(max-width:600px){.grid2,.grid3,.weakness-grid{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+
+<div class="hdr">
+  <div class="hdr-in">
+    <div class="eyebrow">UK Family Visa · Complete Evidence Pack</div>
+    <h1>Relationship <span class="h1em">Evidence</span> Builder</h1>
+    <p class="subhd">Timeline · Personal statements · Weakness checker · Evidence index — everything in one PDF</p>
+  </div>
+</div>
+
+<div class="tab-bar"><div class="tab-bar-in">
+  <div class="tab active" onclick="showTab('about')">① About You</div>
+  <div class="tab" onclick="showTab('statements')">② Personal Statements</div>
+  <div class="tab" onclick="showTab('timeline')">③ Timeline & Evidence</div>
+  <div class="tab" onclick="showTab('checker')">④ Weakness Checker</div>
+  <div class="tab" onclick="showTab('index')">⑤ Evidence Index</div>
+</div></div>
+
+<div class="page">
+
+<!-- ══ TAB 1: ABOUT ══════════════════════════════════════════ -->
+<div class="tab-panel active" id="tab-about">
+  <div class="notice">
+    <strong>How this works:</strong> Fill in all five tabs, then click <em>Generate PDF</em> at the bottom. The PDF is designed so a caseworker can understand the full relationship within 10 minutes — cover, personal statements, weakness self-check, timeline, and evidence index all in one document.
+  </div>
+
+  <div class="card">
+    <div class="card-title">The Couple</div>
+    <div class="grid2" style="margin-bottom:12px">
+      <div class="field"><label>Sponsor's full name</label><input type="text" id="sponsor_name" placeholder="e.g. Jane Smith" oninput="liveCheck()"></div>
+      <div class="field"><label>Applicant's full name (applying for visa)</label><input type="text" id="applicant_name" placeholder="e.g. John Doe" oninput="liveCheck()"></div>
+    </div>
+    <div class="grid3">
+      <div class="field"><label>Relationship start date</label><div class="date-wrap"><input type="text" id="rel_start" placeholder="DD/MM/YYYY" maxlength="10" oninput="formatDateInput(this);liveCheck()" autocomplete="off"><button class="date-cal-btn" type="button" onclick="openDatePicker(this.previousElementSibling)" title="Open calendar">📅</button></div></div>
+      <div class="field"><label>Applicant's country of residence</label><input type="text" id="applicant_country" placeholder="e.g. France"></div>
+      <div class="field"><label>Home Office / GWF ref (if known)</label><input type="text" id="app_ref" placeholder="e.g. GWF012345678"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Relationship Status</div>
+    <div class="grid2" style="margin-bottom:12px">
+      <div class="field">
+        <label>Current relationship status</label>
+        <select id="rel_status" onchange="liveCheck()">
+          <option value="">— select —</option>
+          <option value="unmarried_partners">Unmarried partners (2+ years)</option>
+          <option value="engaged">Engaged / Fiancé(e)</option>
+          <option value="married">Married</option>
+          <option value="civil_partnership">Civil partnership</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Have you lived together?</label>
+        <select id="cohabited" onchange="liveCheck()">
+          <option value="">— select —</option>
+          <option value="yes_current">Yes — currently living together</option>
+          <option value="yes_past">Yes — previously cohabited</option>
+          <option value="no_longdistance">No — long-distance relationship</option>
+          <option value="no_cultural">No — cultural / family reasons</option>
+        </select>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="field">
+        <label>Sponsor's previous marriage / relationship? (if applicable)</label>
+        <input type="text" id="sponsor_prev" placeholder="e.g. Divorced 2018 — decree absolute held">
+        <span class="hint">Leave blank if not applicable. If divorced, attach decree absolute.</span>
+      </div>
+      <div class="field">
+        <label>Applicant's previous marriage / relationship? (if applicable)</label>
+        <input type="text" id="applicant_prev" placeholder="e.g. None">
+        <span class="hint">Any previous relationship must have permanently ended.</span>
+      </div>
+    </div>
+  </div>
+
+
+</div>
+
+<!-- ══ TAB 2: PERSONAL STATEMENTS ════════════════════════════ -->
+<div class="tab-panel" id="tab-statements">
+  <div class="notice">
+    <strong>Why personal statements matter:</strong> Caseworkers read these first. A well-written statement explains the timeline evidence, addresses gaps, and shows the relationship is genuine — not just on paper. Write as though you're explaining to a judge who knows nothing about you. Be specific, consistent with your evidence, and avoid vague phrases like "we love each other."
+  </div>
+
+  <!-- SPONSOR STATEMENT -->
+  <div class="card">
+    <div class="card-title">Sponsor's Statement</div>
+    <div class="card-subtitle">Answer each section honestly and in your own words. Aim for 2–4 sentences per section. Caseworkers look for specific detail — dates, places, names — not generic declarations.</div>
+
+    <div class="field" style="margin-bottom:12px">
+      <label>How and where did you meet? (include date and circumstances)</label>
+      <div class="char-wrap"><textarea id="s_how_met" class="tall" placeholder="e.g. We met in August 2019 through a mutual friend, [name], at a birthday gathering in Bristol. We exchanged numbers that evening and began messaging daily within a week..." oninput="countChars(this,'s_how_met_cnt',800)"></textarea><span class="char-cnt" id="s_how_met_cnt"></span></div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>How did the relationship develop? Key milestones, first visit, when you became a couple.</label>
+      <div class="char-wrap"><textarea id="s_develop" class="tall" placeholder="e.g. After three months of daily calls, [applicant name] visited me in the UK in November 2019 for two weeks. By that point we had decided we were in a committed relationship. We met each other's families in..." oninput="countChars(this,'s_develop_cnt',1000)"></textarea><span class="char-cnt" id="s_develop_cnt"></span></div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>How do you maintain the relationship day-to-day? (communication, visits, shared finances)</label>
+      <div class="char-wrap"><textarea id="s_maintain" placeholder="e.g. We speak every day via WhatsApp video call, usually in the evening. I have visited [country] twice per year and [applicant] has visited the UK [X] times. We share costs for travel and..." oninput="countChars(this,'s_maintain_cnt',800)"></textarea><span class="char-cnt" id="s_maintain_cnt"></span></div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>What are your future plans together in the UK?</label>
+      <div class="char-wrap"><textarea id="s_future" placeholder="e.g. We intend to live together permanently at my address in [city]. [Applicant] plans to seek employment in [field]. We have discussed [marriage/long-term plans] and are committed to building our life here together..." oninput="countChars(this,'s_future_cnt',600)"></textarea><span class="char-cnt" id="s_future_cnt"></span></div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Are there any gaps in contact or evidence you want to explain? (illness, COVID, work, travel)</label>
+      <div class="char-wrap"><textarea id="s_gaps" placeholder="e.g. Between March 2020 and June 2021 we were unable to travel due to COVID-19 restrictions. During this period we maintained daily video calls. Evidence of this period is limited to call logs as we did not use a platform that archives messages..." oninput="countChars(this,'s_gaps_cnt',600)"></textarea><span class="char-cnt" id="s_gaps_cnt"></span></div>
+    </div>
+    <div class="field">
+      <label>Anything else you want the caseworker to know?</label>
+      <div class="char-wrap"><textarea id="s_other" placeholder="Optional — address any unusual circumstances, explain the disability exemption situation, reference supporting witnesses, etc." oninput="countChars(this,'s_other_cnt',600)"></textarea><span class="char-cnt" id="s_other_cnt"></span></div>
+    </div>
+  </div>
+
+  <!-- APPLICANT STATEMENT -->
+  <div class="card">
+    <div class="card-title">Applicant's Statement <span style="color:var(--mut);font-weight:400;letter-spacing:0">(person applying for visa)</span></div>
+    <div class="card-subtitle">The applicant's statement should be consistent with the sponsor's but written independently in their own voice. Matching word-for-word can raise suspicion — same facts, different phrasing.</div>
+
+    <div class="field" style="margin-bottom:12px">
+      <label>How and where did you meet?</label>
+      <div class="char-wrap"><textarea id="a_how_met" class="tall" placeholder="Write in your own words — consistent with the sponsor's account but not identical..." oninput="countChars(this,'a_how_met_cnt',800)"></textarea><span class="char-cnt" id="a_how_met_cnt"></span></div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>How did the relationship develop?</label>
+      <div class="char-wrap"><textarea id="a_develop" class="tall" placeholder="Key milestones, visits, when you became a committed couple..." oninput="countChars(this,'a_develop_cnt',1000)"></textarea><span class="char-cnt" id="a_develop_cnt"></span></div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>How do you maintain the relationship day-to-day?</label>
+      <div class="char-wrap"><textarea id="a_maintain" placeholder="Communication, visits, shared financial commitments..." oninput="countChars(this,'a_maintain_cnt',800)"></textarea><span class="char-cnt" id="a_maintain_cnt"></span></div>
+    </div>
+    <div class="field" style="margin-bottom:12px">
+      <label>Why do you want to live permanently in the UK?</label>
+      <div class="char-wrap"><textarea id="a_future" placeholder="e.g. My life is with [sponsor name] and the UK is where I want to build our future together. I have [ties / plans / qualifications] that mean I am able to contribute to life here..." oninput="countChars(this,'a_future_cnt',600)"></textarea><span class="char-cnt" id="a_future_cnt"></span></div>
+    </div>
+    <div class="field">
+      <label>Any gaps in evidence or unusual circumstances to explain?</label>
+      <div class="char-wrap"><textarea id="a_gaps" placeholder="Optional — same guidance as sponsor. Explain gaps; don't leave them unexplained." oninput="countChars(this,'a_gaps_cnt',600)"></textarea><span class="char-cnt" id="a_gaps_cnt"></span></div>
+    </div>
+  </div>
+
+  <!-- WITNESS -->
+  <div class="card">
+    <div class="card-title">Supporting Witness (optional but recommended)</div>
+    <div class="card-subtitle">A letter from someone who knows you both — a friend, family member, or colleague — confirming the relationship is genuine adds meaningful third-party corroboration.</div>
+    <div class="grid2" style="margin-bottom:12px">
+      <div class="field"><label>Witness full name</label><input type="text" id="wit_name" placeholder="e.g. Sarah Jones"></div>
+      <div class="field"><label>Relationship to couple</label><input type="text" id="wit_rel" placeholder="e.g. Sponsor's sister / Mutual friend known since 2018"></div>
+    </div>
+    <div class="field">
+      <label>Summary of what their letter covers</label>
+      <textarea id="wit_summary" placeholder="e.g. Sarah has known us as a couple since 2020. She has met the applicant on three visits to the UK and will confirm in her letter that she has observed us living together and maintaining a committed relationship..."></textarea>
+      <span class="hint">Attach the actual signed witness letter separately with a reference code from the evidence index.</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══ TAB 3: TIMELINE ════════════════════════════════════════ -->
+<div class="tab-panel" id="tab-timeline">
+  <div class="notice">
+    <strong>Reference codes:</strong> Each entry gets a code like <code style="background:#1A1814;color:#C8A96E;padding:1px 6px;border-radius:2px;font-size:11px">FLT-001</code>. Rename your files to match — e.g. <em>FLT-001_booking-confirmation.pdf</em> — and submit them in a labelled folder alongside the PDF.
+  </div>
+  <div id="allSections"></div>
+</div>
+
+<!-- ══ TAB 4: WEAKNESS CHECKER ═══════════════════════════════ -->
+<div class="tab-panel" id="tab-checker">
+  <div class="notice">
+    <strong>Known caseworker red flags:</strong> These are the most common reasons genuine applications are refused. The checker analyses your entries and statements in real time and flags anything that needs attention before you generate the PDF.
+  </div>
+  <div id="weaknessGrid" class="weakness-grid"></div>
+</div>
+
+<!-- ══ TAB 5: EVIDENCE INDEX ══════════════════════════════════ -->
+<div class="tab-panel" id="tab-index">
+  <div class="notice">
+    <strong>This is a live preview</strong> of the evidence index page that will appear in your PDF. Every entry and attachment is listed here with its reference code so the caseworker can find any document instantly.
+  </div>
+  <div class="card">
+    <div class="card-title" style="margin-bottom:10px">Live Evidence Index</div>
+    <div id="indexPreview"><div class="idx-empty">Add entries in the Timeline tab — the index builds here in real time.</div></div>
+  </div>
+</div>
+
+<div id="status"></div>
+</div><!-- /page -->
+
+<div class="gen-bar">
+  <div class="bar-info">
+    <span>Entries: <strong id="totalCount">0</strong> &nbsp;·&nbsp; Attachments: <strong id="totalAtts">0</strong> &nbsp;·&nbsp; Warnings: <strong id="warnCount" style="color:var(--red)">—</strong></span>
+    <span style="font-size:11px">PDF: Cover · Statements · Weakness check · Timeline · Evidence index · Checklist &nbsp;·&nbsp; <span style="color:var(--mut)">📦 ZIP = empty folders + any uploaded files, ready to fill manually</span></span>
+  </div>
+  <div class="bar-actions">
+    <button class="btn-load" onclick="document.getElementById('loadInput').click()">📂 Load save</button>
+    <button class="btn-save" onclick="saveState()">💾 Save progress</button>
+    <button class="btn-save" onclick="downloadZip()" title="Download folder structure as ZIP">📦 Download folders</button>
+    <button class="btn-gen" id="generateBtn" onclick="generatePDF()">📄 Generate PDF</button>
+  </div>
+</div>
+<input type="file" id="loadInput" accept=".json" onchange="loadState(event)">
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────
+const TYPES=[
+  {id:"flight",  label:"Flights & Travel",       color:"#4A7FA5",prefix:"FLT",icon:"✈", fields:["date","route","ref","note"]},
+  {id:"airbnb",  label:"Accommodation",           color:"#C5503A",prefix:"ACM",icon:"🏠",fields:["date","location","nights","ref","note"]},
+  {id:"transfer",label:"Bank Transfers",          color:"#2E7D5E",prefix:"TRF",icon:"💸",fields:["date","amount","direction","ref","note"]},
+  {id:"photo",   label:"Photos & Memories",       color:"#B07828",prefix:"PHT",icon:"📸",fields:["date","location","description"]},
+  {id:"gap",     label:"Gap Explanation",         color:"#9A9088",prefix:"GAP",icon:"📝",fields:["date","gap_period","gap_reason"]},
+];
+const FD={
+  date:{label:"Date",type:"text",placeholder:"DD/MM/YYYY"},
+  route:{label:"Route (From → To)",type:"text",placeholder:"e.g. London → Paris"},
+  ref:{label:"Booking / Conf. No.",type:"text",placeholder:"e.g. ABC123"},
+  note:{label:"Notes",type:"textarea",placeholder:"Additional context..."},
+  location:{label:"Location / City",type:"text",placeholder:"e.g. Paris, France"},
+  nights:{label:"Nights",type:"number",placeholder:"5"},
+  amount:{label:"Amount (£)",type:"number",placeholder:"250.00"},
+  direction:{label:"Direction",type:"select",options:["Sponsor → Applicant","Applicant → Sponsor"]},
+  description:{label:"Description",type:"textarea",placeholder:"e.g. First trip together"},
+  gap_period:{label:"Period covered",type:"text",placeholder:"e.g. March 2020 – June 2021"},
+  gap_reason:{label:"Explanation",type:"textarea",placeholder:"e.g. COVID-19 travel restrictions prevented visits. We maintained contact via daily video calls throughout this period..."},
+};
+const ATT_FMTS=["PDF","JPG","PNG","Screenshot","Scan","Other"];
+const entries={};TYPES.forEach(t=>entries[t.id]=[]);
+let ec=0;
+
+function rc(typeId,i){const t=TYPES.find(x=>x.id===typeId);return`${t.prefix}-${String(i).padStart(3,'0')}`;}
+
+// ── TABS ──────────────────────────────────────────────────────
+function showTab(id){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  const tabs=['about','statements','timeline','checker','index'];
+  document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('active');
+  if(id==='checker') runWeaknessCheck();
+  if(id==='index') liveUpdate();
+}
+
+// ── CHAR COUNTER ──────────────────────────────────────────────
+function countChars(el,cntId,max){
+  const n=el.value.length;
+  const span=document.getElementById(cntId);
+  span.textContent=`${n}/${max}`;
+  span.className='char-cnt'+(n>max?' low':'');
+}
+
+// ── ADD ENTRY ─────────────────────────────────────────────────
+function addEntry(typeId){
+  const type=TYPES.find(t=>t.id===typeId);
+  const id=++ec;
+  const li=entries[typeId].length+1;
+  const code=rc(typeId,li);
+  entries[typeId].push({id,li,code,attachments:[]});
+
+  const mf=type.fields.filter(f=>!["note","summary","description","gap_reason"].includes(f));
+  const tf=type.fields.filter(f=>["note","summary","description","gap_reason"].includes(f));
+  const cols=Math.min(mf.length,3);
+  let fh=`<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:10px;${tf.length?'margin-bottom:10px':''}">`;
+  mf.forEach(f=>{
+    const d=FD[f];
+    fh+=`<div class="field"><label>${d.label}</label>`;
+    if(d.type==='select') fh+=`<select data-eid="${id}" data-field="${f}" onchange="liveUpdate()">`+d.options.map(o=>`<option>${o}</option>`).join('')+`</select>`;
+    else if(f==='date') fh+=`<div class="date-wrap"><input type="text" data-eid="${id}" data-field="${f}" placeholder="DD/MM/YYYY" maxlength="10" oninput="formatDateInput(this);liveUpdate()" autocomplete="off"><button class="date-cal-btn" type="button" onclick="openDatePicker(this.previousElementSibling)" title="Open calendar">📅</button></div>`;
+    else fh+=`<input type="${d.type}" data-eid="${id}" data-field="${f}" placeholder="${d.placeholder||''}" oninput="liveUpdate()">`;
+    fh+=`</div>`;
+  });
+  fh+=`</div>`;
+  tf.forEach(f=>{
+    const d=FD[f];
+    fh+=`<div class="field"><label>${d.label}</label><textarea data-eid="${id}" data-field="${f}" placeholder="${d.placeholder||''}" rows="2" oninput="liveUpdate()"></textarea></div>`;
+  });
+
+  // Gap entries don't need attachments
+  const attSection = typeId==='gap' ? '' : `
+    <div class="att-row">
+      <div class="att-lbl">📎 Attachments <span style="color:var(--fnt);font-weight:400">(images &amp; PDFs embedded in final PDF · also included in downloaded ZIP folders)</span></div>
+      <div class="att-list" id="atts_${id}"></div>
+      <div class="att-add-row">
+        <button class="att-add" onclick="document.getElementById('file_${id}').click()">📁 Upload file</button>
+        <input class="att-file-input" type="file" id="file_${id}" accept="image/*,.pdf" onchange="handleFileUpload(${id}, this)">
+        <button class="att-add" onclick="addAttManual(${id})">+ Add reference only</button>
+      </div>
+    </div>`;
+
+  const card=document.createElement('div');
+  card.className=`entry-card ${typeId}`;card.id=`entry_${id}`;
+  card.innerHTML=`
+    <button class="entry-rm" onclick="removeEntry('${typeId}',${id})">×</button>
+    <div><span class="ref-badge" id="ref_${id}">${code}</span></div>
+    ${fh}${attSection}`;
+  document.getElementById(`entries_${typeId}`).appendChild(card);
+  updCount(typeId);updTotal();liveUpdate();
+}
+
+function removeEntry(typeId,id){
+  entries[typeId]=entries[typeId].filter(e=>e.id!==id);
+  document.getElementById(`entry_${id}`).remove();
+  entries[typeId].forEach((e,i)=>{
+    e.li=i+1;e.code=rc(typeId,i+1);
+    document.getElementById(`ref_${e.id}`).textContent=e.code;
+  });
+  updCount(typeId);updTotal();liveUpdate();
+}
+
+// ── FILE UPLOAD SYSTEM ─────────────────────────────────────────
+const FORMAT_COLOURS={PDF:'#B94C39',JPG:'#B07828',PNG:'#4A7FA5',Screenshot:'#7B5EA7',Scan:'#2E7D5E',Image:'#B07828',Other:'#9A9088'};
+
+function fmtColour(fmt){
+  for(const[k,v] of Object.entries(FORMAT_COLOURS)){if(fmt.toUpperCase().includes(k.toUpperCase()))return v;}
+  return '#9A9088';
+}
+
+function compressImage(dataURL, maxSizePx, quality, callback){
+  const img=new Image();
+  img.onload=()=>{
+    const canvas=document.createElement('canvas');
+    let w=img.width, h=img.height;
+    // Scale down if larger than maxSizePx on longest side
+    if(w>maxSizePx||h>maxSizePx){
+      const scale=maxSizePx/Math.max(w,h);
+      w=Math.round(w*scale); h=Math.round(h*scale);
+    }
+    canvas.width=w; canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    callback(canvas.toDataURL('image/jpeg',quality));
+  };
+  img.src=dataURL;
+}
+
+function handleFileUpload(eid, input){
+  const file=input.files[0];
+  if(!file)return;
+  const isPDF=file.type==='application/pdf';
+  const isImage=file.type.startsWith('image/');
+  if(!isPDF&&!isImage){alert('Please upload an image (JPG, PNG) or PDF file.');input.value='';return;}
+
+  const sizeMB=(file.size/1024/1024).toFixed(1);
+  const desc=prompt(`Description for this file:\n(e.g. "Booking confirmation", "Bank statement page 3")\n\nFile: ${file.name} (${sizeMB}MB)`);
+  if(!desc){input.value='';return;}
+
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const raw=e.target.result;
+    const fmt=isPDF?'PDF':(file.name.toLowerCase().endsWith('.png')?'PNG':'JPG');
+    const aid=Date.now();
+
+    const storeAtt=(b64)=>{
+      const att={id:aid,fmt,desc,filename:file.name,sizeMB:parseFloat(sizeMB),b64,isPDF,isImage,embedPages:isPDF?'1-3':null};
+      let entry;
+      TYPES.forEach(t=>{const en=entries[t.id].find(x=>x.id===eid);if(en)entry=en;});
+      if(!entry)return;
+      entry.attachments.push(att);
+      renderAttTag(eid,att);
+      updTotal();liveUpdate();
+    };
+
+    if(isImage){
+      // Compress: max 1800px on longest side, 0.82 quality
+      compressImage(raw, 1800, 0.82, storeAtt);
+    } else {
+      storeAtt(raw);
+    }
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+function addAttManual(eid){
+  const ATT_FMTS=['PDF','JPG','PNG','Screenshot','Scan','Other'];
+  const raw=prompt("Format?\n"+ATT_FMTS.map((f,i)=>`${i+1}. ${f}`).join('\n')+"\n\nEnter number or name:");
+  if(!raw)return;
+  const fmt=ATT_FMTS[parseInt(raw)-1]||raw;
+  const desc=prompt("Brief description (e.g. 'Booking confirmation', 'Bank statement pg 3'):");
+  if(!desc)return;
+  let entry;
+  TYPES.forEach(t=>{const en=entries[t.id].find(x=>x.id===eid);if(en)entry=en;});
+  if(!entry)return;
+  const aid=Date.now();
+  const att={id:aid,fmt,desc,filename:null,b64:null,isPDF:false,isImage:false,embedPages:null};
+  entry.attachments.push(att);
+  renderAttTag(eid,att);
+  updTotal();liveUpdate();
+}
+
+function renderAttTag(eid,att){
+  const tc=TYPES.find(t=>entries[t.id].some(e=>e.id===eid))?.color||'#888';
+  const fc=fmtColour(att.fmt);
+  const container=document.getElementById(`atts_${eid}`);
+  if(!container)return;
+
+  const item=document.createElement('div');
+  item.className='att-item';item.id=`att_${att.id}`;
+
+  let thumbHTML='';
+  if(att.isImage&&att.b64){
+    thumbHTML=`<img class="att-thumb" src="${att.b64}" title="Click to enlarge" onclick="openLightbox('${att.id}')">`;
+  } else if(att.isPDF&&att.b64){
+    thumbHTML=`<div class="att-thumb-pdf"><span style="font-size:18px">📄</span><span>PDF</span></div>`;
+  }
+
+  const sizeWarn=att.sizeMB>5?`<div class="att-size-warn">⚠ ${att.sizeMB}MB — large file, will increase PDF size</div>`:'';
+
+  let pagesHTML='';
+  if(att.isPDF&&att.b64){
+    pagesHTML=`<div class="att-pages">
+      Embed pages:
+      <input type="text" value="${att.embedPages||'1-3'}" style="width:55px"
+        onchange="updateEmbedPages(${eid},${att.id},this.value)"
+        title="e.g. '1-3' or '1,3,5' or 'all'">
+      <span style="font-size:10px;color:var(--fnt)">(e.g. 1–3, all)</span>
+    </div>`;
+  }
+
+  // Format options for the dropdown
+  const fmtOptions = ATT_FMTS.map(f=>
+    `<option value="${f}" ${f===att.fmt?'selected':''}>${f}</option>`).join('');
+
+  item.innerHTML=`
+    <div class="att-item-top">
+      ${thumbHTML}
+      <div class="att-info">
+        <select class="att-fmt-select" style="background:${fc};color:white;border:none;border-radius:2px;font-size:9px;font-weight:700;padding:1px 4px;margin-bottom:3px;cursor:pointer;font-family:inherit;"
+          onchange="updateAttFmt(${eid},${att.id},this.value,this)">${fmtOptions}</select>
+        <input class="att-desc-input" type="text" value="${att.desc.replace(/"/g,'&quot;')}"
+          style="width:100%;border:none;border-bottom:1px dashed var(--border);background:transparent;font-size:11px;color:var(--text);font-family:inherit;padding:1px 0;outline:none;"
+          placeholder="Description…"
+          onchange="updateAttDesc(${eid},${att.id},this.value)"
+          onfocus="this.style.borderBottomColor='var(--gold)'"
+          onblur="this.style.borderBottomColor='var(--border)'">
+        ${att.filename?`<div class="att-filename">${att.filename}${att.sizeMB?' · '+att.sizeMB+'MB':''}</div>`:''}
+        ${sizeWarn}
+        ${pagesHTML}
+      </div>
+    </div>
+    <button class="att-rm" onclick="removeAtt(${eid},${att.id})">🗑 Remove</button>`;
+  container.appendChild(item);
+}
+
+function updateAttDesc(eid,aid,val){
+  TYPES.forEach(t=>{
+    const en=entries[t.id].find(x=>x.id===eid);
+    if(en){const a=en.attachments.find(a=>a.id===aid);if(a)a.desc=val;}
+  });
+  liveUpdate();
+}
+
+function updateAttFmt(eid,aid,val,selectEl){
+  TYPES.forEach(t=>{
+    const en=entries[t.id].find(x=>x.id===eid);
+    if(en){const a=en.attachments.find(a=>a.id===aid);if(a)a.fmt=val;}
+  });
+  // Update background colour to match new format
+  if(selectEl) selectEl.style.background=fmtColour(val);
+  liveUpdate();
+}
+
+function updateEmbedPages(eid,aid,val){
+  TYPES.forEach(t=>{
+    const en=entries[t.id].find(x=>x.id===eid);
+    if(en){const a=en.attachments.find(a=>a.id===aid);if(a)a.embedPages=val;}
+  });
+}
+
+function openLightbox(aid){
+  let b64=null;
+  TYPES.forEach(t=>entries[t.id].forEach(e=>e.attachments.forEach(a=>{if(a.id==aid)b64=a.b64;})));
+  if(!b64)return;
+  const lb=document.getElementById('lightbox');
+  document.getElementById('lightbox-img').src=b64;
+  lb.classList.add('open');
+}
+
+function removeAtt(eid,aid){
+  TYPES.forEach(t=>{const e=entries[t.id].find(x=>x.id===eid);if(e)e.attachments=e.attachments.filter(a=>a.id!==aid);});
+  document.getElementById(`att_${aid}`)?.remove();
+  updTotal();liveUpdate();
+}
+
+function updCount(tid){document.getElementById(`count_${tid}`).textContent=entries[tid].length;}
+function updTotal(){
+  const t=TYPES.reduce((s,t)=>s+entries[t.id].length,0);
+  const a=TYPES.reduce((s,t)=>s+entries[t.id].reduce((ss,e)=>ss+e.attachments.length,0),0);
+  document.getElementById('totalCount').textContent=t;
+  document.getElementById('totalAtts').textContent=a;
+}
+
+// ── COLLECT ENTRIES ────────────────────────────────────────────
+function collectEntries(){
+  const rows=[];
+  TYPES.forEach(type=>{
+    entries[type.id].forEach(entry=>{
+      const flds=document.querySelectorAll(`[data-eid="${entry.id}"]`);
+      const obj={type:type.id,type_label:type.label,icon:type.icon,prefix:type.prefix,refCode:entry.code,attachments:entry.attachments};
+      flds.forEach(f=>{obj[f.dataset.field]=f.value;});
+      if(type.id==='flight')   obj.main=obj.route||'';
+      if(type.id==='airbnb')   obj.main=obj.location?(obj.location+(obj.nights?' ('+obj.nights+' nights)':'')):' ';
+      if(type.id==='transfer') obj.main=obj.amount?`£${obj.amount} — ${obj.direction||''}`:' ';
+      if(type.id==='photo')    obj.main=obj.location||obj.description||'';
+      if(type.id==='gap')      obj.main=obj.gap_period||'Gap in evidence';
+      rows.push(obj);
+    });
+  });
+  return rows.sort((a,b)=>(dmyToISO(a.date)||'').localeCompare(dmyToISO(b.date)||''));
+}
+
+// ── WEAKNESS CHECKER ───────────────────────────────────────────
+const CHECKS=[
+  {id:'span',   label:'Evidence spans full relationship',
+   desc:'Evidence should cover the entire relationship, not just recent months.',
+   action:'Add earlier entries — especially from the first 6–12 months.',
+   check:(rows,data)=>{
+     if(!data.rel_start||!rows.length)return'warn';
+     const dates=rows.filter(r=>r.date).map(r=>dmyToISO(r.date)).filter(Boolean).sort();
+     if(!dates.length)return'warn';
+     const startYear=new Date(dmyToISO(data.rel_start)||data.rel_start).getFullYear();
+     const firstEvidYear=new Date(dates[0]).getFullYear();
+     return firstEvidYear<=startYear+1?'ok':'warn';
+   }},
+  {id:'variety', label:'Multiple evidence types used',
+   desc:'A mix of types (travel, calls, transfers, photos) is stronger than one type alone.',
+   action:'Add at least 3 different evidence types.',
+   check:(rows)=>{
+     const types=new Set(rows.map(r=>r.type).filter(t=>t!=='gap'));
+     return types.size>=3?'ok':'warn';
+   }},
+  {id:'volume',  label:'Sufficient volume of evidence',
+   desc:'Aim for at least 6–10 pieces of evidence covering different time periods.',
+   action:'Add more entries — 10+ is a strong application.',
+   check:(rows)=>{
+     const n=rows.filter(r=>r.type!=='gap').length;
+     return n>=6?'ok':'warn';
+   }},
+  {id:'recent',  label:'Recent evidence included (last 6 months)',
+   desc:'The relationship must be "subsisting" — recent contact evidence is essential.',
+   action:'Add entries from the past 6 months.',
+   check:(rows)=>{
+     const sixMonthsAgo=new Date();sixMonthsAgo.setMonth(sixMonthsAgo.getMonth()-6);
+     const recent=rows.filter(r=>r.date&&new Date(dmyToISO(r.date))>sixMonthsAgo);
+     return recent.length>=2?'ok':'warn';
+   }},
+  {id:'gaps',    label:'Evidence gaps explained',
+   desc:'Unexplained gaps in contact raise caseworker suspicion.',
+   action:'Add a "Gap Explanation" entry for any period with little contact.',
+   check:(rows,data)=>{
+     const gapEntries=rows.filter(r=>r.type==='gap');
+     const sponsorGap=document.getElementById('s_gaps')?.value?.trim()||'';
+     return(gapEntries.length>0||sponsorGap.length>50)?'ok':'info';
+   }},
+  {id:'transfers',label:'Financial connection evidenced',
+   desc:'Shared financial activity (transfers, joint costs) strengthens the genuine relationship argument.',
+   action:'Add bank transfer entries and attach relevant bank statement pages.',
+   check:(rows)=>{
+     const tr=rows.filter(r=>r.type==='transfer');
+     return tr.length>=2?'ok':'warn';
+   }},
+  {id:'statements',label:'Both personal statements completed',
+   desc:'Personal statements give context the documents cannot. Both partners should write one.',
+   action:'Complete both statements in the Personal Statements tab.',
+   check:()=>{
+     const s=document.getElementById('s_how_met')?.value?.trim()||'';
+     const a=document.getElementById('a_how_met')?.value?.trim()||'';
+     if(s.length>100&&a.length>100)return'ok';
+     if(s.length>100||a.length>100)return'info';
+     return'warn';
+   }},
+  {id:'witness',  label:'Supporting witness provided',
+   desc:'Third-party corroboration from someone who knows you both as a couple.',
+   action:'Ask a friend or family member to write a short supporting letter. Add their details in the Statements tab.',
+   check:()=>{
+     const n=document.getElementById('wit_name')?.value?.trim()||'';
+     return n.length>2?'ok':'info';
+   }},
+  {id:'prev_rel', label:'Previous relationships declared',
+   desc:'Any previous marriage or civil partnership must be formally ended and documented.',
+   action:'Add divorce/dissolution information in the About tab and attach decree absolute.',
+   check:(rows,data)=>{
+     const sp=data.sponsor_prev||'';const ap=data.applicant_prev||'';
+     // If either mentions divorce/previous, check if decree is mentioned
+     if(sp.toLowerCase().includes('divorce')||sp.toLowerCase().includes('previous')){
+       return sp.toLowerCase().includes('decree')||sp.toLowerCase().includes('held')?'ok':'warn';
+     }
+     return'ok';
+   }},
+  {id:'cohabitation',label:'Cohabitation or long-distance explained',
+   desc:'If you haven\'t lived together, you must prove the relationship is nonetheless genuine and durable.',
+   action:'Explain in your personal statement why you haven\'t cohabited and how you\'ve maintained commitment.',
+   check:(rows,data)=>{
+     const co=data.cohabited||'';
+     if(co==='yes_current'||co==='yes_past')return'ok';
+     const s=document.getElementById('s_maintain')?.value?.trim()||'';
+     return s.length>100?'ok':'warn';
+   }},
+];
+
+function runWeaknessCheck(){
+  const rows=collectEntries();
+  const data=collectData();
+  const grid=document.getElementById('weaknessGrid');
+  let warnCount=0;
+  grid.innerHTML='';
+  CHECKS.forEach(c=>{
+    const result=c.check(rows,data);
+    if(result==='warn')warnCount++;
+    const isOk=result==='ok';
+    const isWarn=result==='warn';
+    const div=document.createElement('div');
+    div.className='wk-item'+(isOk?' ok':isWarn?' warn-item':'');
+    div.innerHTML=`
+      <div class="wk-label">
+        <span class="wk-status">${isOk?'✅':isWarn?'⚠️':'ℹ️'}</span>
+        ${c.label}
+      </div>
+      <div class="wk-desc">${c.desc}</div>
+      ${!isOk?`<div class="wk-action">${c.action}</div>`:''}
+    `;
+    grid.appendChild(div);
+  });
+  document.getElementById('warnCount').textContent=warnCount>0?`${warnCount} warning${warnCount>1?'s':''}`:'0';
+}
+
+// ── LIVE INDEX ─────────────────────────────────────────────────
+function liveUpdate(){
+  const rows=collectEntries();
+  const preview=document.getElementById('indexPreview');
+  if(!rows.length){preview.innerHTML='<div class="idx-empty">Add entries in the Timeline tab — the index builds here in real time.</div>';return;}
+  const TC={flight:'#4A7FA5',airbnb:'#C5503A',transfer:'#2E7D5E',photo:'#B07828',gap:'#9A9088'};
+  let html=`<table class="idx-tbl"><thead><tr><th>Ref</th><th>Date</th><th>Type</th><th>Description</th><th>Attachments</th></tr></thead><tbody>`;
+  rows.forEach(e=>{
+    const c=TC[e.type]||'#888';
+    const d=e.date?new Date((dmyToISO(e.date)||e.date)+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'}):'—';
+    const atts=e.attachments&&e.attachments.length?e.attachments.map(a=>`<span class="afmt" style="background:${c}">${a.fmt}</span>${a.desc}`).join('<br>'):'<span style="color:var(--fnt);font-style:italic">None</span>';
+    html+=`<tr><td class="ref-cell" style="color:${c}">${e.refCode}</td><td style="white-space:nowrap">${d}</td><td><span class="type-pill" style="background:${c}20;color:${c}">${e.type_label}</span></td><td>${e.main||e.note||e.summary||e.description||'—'}</td><td style="font-size:11px;line-height:1.7">${atts}</td></tr>`;
+  });
+  html+=`</tbody></table>`;
+  preview.innerHTML=html;
+}
+
+// ── DATE HELPERS (DD/MM/YYYY) ──────────────────────────────────
+// Convert DD/MM/YYYY text input → ISO YYYY-MM-DD for internal use
+function dmyToISO(val) {
+  if (!val) return '';
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(val)) return val;
+  const m = val.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{4})$/);
+  if (!m) return '';
+  const [,d,mo,y] = m;
+  return `${y}-${mo.padStart(2,'0')}-${d.padStart(2,'0')}`;
+}
+
+// Format ISO → DD/MM/YYYY for display
+function isoToDMY(val) {
+  if (!val) return '';
+  const m = val.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!m) return val; // return as-is if already DMY or unknown
+  return `${m[3]}/${m[2]}/${m[1]}`;
+}
+
+// Auto-insert slashes as user types into a date text input
+function formatDateInput(el) {
+  let v = el.value.replace(/[^\d]/g,'');
+  if (v.length > 2)  v = v.slice(0,2) + '/' + v.slice(2);
+  if (v.length > 5)  v = v.slice(0,5) + '/' + v.slice(5);
+  if (v.length > 10) v = v.slice(0,10);
+  el.value = v;
+}
+
+// Get ISO value from a date field (handles both text DD/MM/YYYY and old ISO saves)
+function getDateISO(id) {
+  const val = (document.getElementById(id)?.value||'').trim();
+  return dmyToISO(val) || val;
+}
+
+// ── DATE PICKER ────────────────────────────────────────────────
+let _dpTarget = null;  // the input the picker is attached to
+let _dpYear   = null;
+let _dpMonth  = null;  // 0-indexed
+let _dpMode   = 'days'; // 'days' | 'years'
+let _dpPopup  = null;
+
+const DP_MONTHS = ['January','February','March','April','May','June',
+                   'July','August','September','October','November','December'];
+const DP_DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+function openDatePicker(input) {
+  // Close any existing picker
+  closeDatePicker();
+
+  _dpTarget = input;
+  const today = new Date();
+
+  // Parse current value if any
+  const iso = dmyToISO(input.value.trim());
+  const cur  = iso ? new Date(iso + 'T12:00:00') : today;
+  _dpYear  = cur.getFullYear();
+  _dpMonth = cur.getMonth();
+  _dpMode  = 'days';
+
+  _dpPopup = document.createElement('div');
+  _dpPopup.className = 'date-picker-popup';
+  // Position relative to the date-wrap
+  const wrap = input.closest('.date-wrap') || input.parentElement;
+  wrap.style.position = 'relative';
+  wrap.appendChild(_dpPopup);
+
+  renderDatePicker();
+
+  // Close on outside click
+  setTimeout(() => document.addEventListener('mousedown', _dpOutsideClick), 0);
+}
+
+function _dpOutsideClick(e) {
+  if (_dpPopup && !_dpPopup.contains(e.target) && e.target !== _dpTarget && !e.target.classList.contains('date-cal-btn')) {
+    closeDatePicker();
+  }
+}
+
+function closeDatePicker() {
+  if (_dpPopup) { _dpPopup.remove(); _dpPopup = null; }
+  document.removeEventListener('mousedown', _dpOutsideClick);
+  _dpTarget = null;
+}
+
+function renderDatePicker() {
+  if (!_dpPopup) return;
+  const today = new Date();
+  const selISO = _dpTarget ? dmyToISO(_dpTarget.value.trim()) : '';
+  const selDate = selISO ? new Date(selISO + 'T12:00:00') : null;
+
+  if (_dpMode === 'years') {
+    const startYr = _dpYear - 7;
+    let html = `<div class="dp-header">
+      <button class="dp-nav" onclick="dpYearPage(-1)">‹</button>
+      <span class="dp-month-label">${startYr}–${startYr+15}</span>
+      <button class="dp-nav" onclick="dpYearPage(1)">›</button>
+    </div><div class="dp-year-grid">`;
+    for (let y = startYr; y < startYr + 16; y++) {
+      const sel = selDate && selDate.getFullYear() === y ? ' selected' : '';
+      html += `<div class="dp-year${sel}" onclick="dpSelectYear(${y})">${y}</div>`;
+    }
+    html += '</div>';
+    _dpPopup.innerHTML = html;
+    return;
+  }
+
+  // Days view
+  const firstDay = new Date(_dpYear, _dpMonth, 1).getDay(); // 0=Sun
+  const daysInMonth = new Date(_dpYear, _dpMonth + 1, 0).getDate();
+  const daysInPrev  = new Date(_dpYear, _dpMonth, 0).getDate();
+
+  let html = `<div class="dp-header">
+    <button class="dp-nav" onclick="dpNav(-1)">‹</button>
+    <span class="dp-month-label" onclick="dpSwitchMode()">${DP_MONTHS[_dpMonth]} ${_dpYear}</span>
+    <button class="dp-nav" onclick="dpNav(1)">›</button>
+  </div><div class="dp-grid">`;
+
+  DP_DAYS.forEach(d => html += `<div class="dp-dow">${d}</div>`);
+
+  // Previous month trailing days
+  for (let i = firstDay - 1; i >= 0; i--) {
+    html += `<div class="dp-day other-month" onclick="dpNav(-1)">${daysInPrev - i}</div>`;
+  }
+
+  // Current month days
+  for (let day = 1; day <= daysInMonth; day++) {
+    const isToday   = today.getFullYear()===_dpYear && today.getMonth()===_dpMonth && today.getDate()===day;
+    const isSel     = selDate && selDate.getFullYear()===_dpYear && selDate.getMonth()===_dpMonth && selDate.getDate()===day;
+    let cls = 'dp-day';
+    if (isToday && !isSel) cls += ' today';
+    if (isSel)             cls += ' selected';
+    html += `<div class="${cls}" onclick="dpSelectDay(${day})">${day}</div>`;
+  }
+
+  // Next month leading days
+  const cells = firstDay + daysInMonth;
+  const trailing = cells % 7 === 0 ? 0 : 7 - (cells % 7);
+  for (let i = 1; i <= trailing; i++) {
+    html += `<div class="dp-day other-month" onclick="dpNav(1)">${i}</div>`;
+  }
+
+  html += '</div>';
+  _dpPopup.innerHTML = html;
+}
+
+function dpNav(dir) {
+  _dpMonth += dir;
+  if (_dpMonth > 11) { _dpMonth = 0; _dpYear++; }
+  if (_dpMonth < 0)  { _dpMonth = 11; _dpYear--; }
+  renderDatePicker();
+}
+
+function dpYearPage(dir) {
+  _dpYear += dir * 16;
+  renderDatePicker();
+}
+
+function dpSwitchMode() {
+  _dpMode = _dpMode === 'days' ? 'years' : 'days';
+  renderDatePicker();
+}
+
+function dpSelectYear(y) {
+  _dpYear = y;
+  _dpMode = 'days';
+  renderDatePicker();
+}
+
+function dpSelectDay(day) {
+  if (!_dpTarget) return;
+  const d   = String(day).padStart(2,'0');
+  const mo  = String(_dpMonth + 1).padStart(2,'0');
+  _dpTarget.value = `${d}/${mo}/${_dpYear}`;
+  _dpTarget.dispatchEvent(new Event('input', {bubbles:true}));
+  closeDatePicker();
+}
+
+function liveCheck(){runWeaknessCheck();}
+
+// ── DATA COLLECTION ────────────────────────────────────────────
+function collectData(){
+  return{
+    sponsor:    g('sponsor_name'),
+    applicant:  g('applicant_name'),
+    rel_start:  g('rel_start'),
+    country:    g('applicant_country'),
+    app_ref:    g('app_ref'),
+    rel_status: g('rel_status'),
+    cohabited:  g('cohabited'),
+    sponsor_prev:   g('sponsor_prev'),
+    applicant_prev: g('applicant_prev'),
+    fin_exemption:  g('fin_exemption'),
+    fin_summary:    g('fin_summary'),
+    // sponsor statement
+    s_how_met: g('s_how_met'),
+    s_develop: g('s_develop'),
+    s_maintain:g('s_maintain'),
+    s_future:  g('s_future'),
+    s_gaps:    g('s_gaps'),
+    s_other:   g('s_other'),
+    // applicant statement
+    a_how_met: g('a_how_met'),
+    a_develop: g('a_develop'),
+    a_maintain:g('a_maintain'),
+    a_future:  g('a_future'),
+    a_gaps:    g('a_gaps'),
+    // witness
+    wit_name:   g('wit_name'),
+    wit_rel:    g('wit_rel'),
+    wit_summary:g('wit_summary'),
+    entries: collectEntries(),
+  };
+}
+function g(id){return(document.getElementById(id)?.value||'').trim();}
+
+// ── GENERATE PDF ───────────────────────────────────────────────
+async function generatePDF(){
+  const data=collectData();
+  if(!data.entries.filter(e=>e.type!=='gap').length){showStatus('Add at least one evidence entry in the Timeline tab.',false);return;}
+  const btn=document.getElementById('generateBtn');
+  btn.disabled=true;btn.innerHTML='⏳ Generating...';
+
+  // Show loading overlay
+  const overlay=document.createElement('div');
+  overlay.id='pdf-overlay';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(24,22,15,.6);backdrop-filter:blur(3px);z-index:9999;display:flex;align-items:center;justify-content:center;';
+  const box=document.createElement('div');
+  box.style.cssText='background:#fff;border-radius:8px;padding:32px 40px;text-align:center;max-width:320px;box-shadow:0 8px 40px rgba(0,0,0,.3);';
+  box.innerHTML=`<div style="font-size:32px;margin-bottom:12px">📄</div>
+    <div style="font-family:inherit;font-size:15px;font-weight:600;color:#18160F;margin-bottom:6px">Generating PDF…</div>
+    <div id="pdf-progress" style="font-size:12px;color:#7A7268;margin-bottom:16px">Preparing your evidence pack</div>
+    <div style="width:100%;height:3px;background:#F0EDE8;border-radius:2px;overflow:hidden">
+      <div id="pdf-bar" style="height:100%;width:0%;background:#A07830;border-radius:2px;transition:width .4s ease;"></div>
+    </div>`;
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+
+  // Animate progress messages
+  const messages=[
+    [10,'Building personal statements…'],
+    [30,'Compiling timeline entries…'],
+    [55,'Embedding images…'],
+    [75,'Generating evidence index…'],
+    [90,'Finalising PDF…'],
+  ];
+  let mi=0;
+  const ticker=setInterval(()=>{
+    if(mi<messages.length){
+      document.getElementById('pdf-bar').style.width=messages[mi][0]+'%';
+      document.getElementById('pdf-progress').textContent=messages[mi][1];
+      mi++;
+    }
+  },600);
+
+  try{
+    const r=await fetch('/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+    if(!r.ok)throw new Error(await r.text());
+    const blob=await r.blob();
+    clearInterval(ticker);
+    document.getElementById('pdf-bar').style.width='100%';
+    document.getElementById('pdf-progress').textContent='Done!';
+    setTimeout(()=>{
+      document.getElementById('pdf-overlay')?.remove();
+    },600);
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download='relationship-evidence-pack.pdf';a.click();
+    URL.revokeObjectURL(url);
+    showStatus('✓ PDF downloaded! Check the Weakness Checker tab before submitting.',true);
+  }catch(e){
+    clearInterval(ticker);
+    document.getElementById('pdf-overlay')?.remove();
+    showStatus('Could not reach the PDF server — make sure timeline_server.py is running (python3 timeline_server.py)',false);
+  }finally{btn.disabled=false;btn.innerHTML='📄 Generate PDF';}
+}
+
+function showStatus(msg,ok){
+  const el=document.getElementById('status');
+  el.textContent=msg;el.className=ok?'s-ok':'s-err';el.style.display='block';
+  setTimeout(()=>el.style.display='none',9000);
+}
+
+// ── SAVE / LOAD ────────────────────────────────────────────────
+function saveState(){
+  // Collect all form field values
+  const FIELDS=['sponsor_name','applicant_name','rel_start','applicant_country','app_ref',
+    'rel_status','cohabited','sponsor_prev','applicant_prev','fin_exemption','fin_summary',
+    's_how_met','s_develop','s_maintain','s_future','s_gaps','s_other',
+    'a_how_met','a_develop','a_maintain','a_future','a_gaps',
+    'wit_name','wit_rel','wit_summary'];
+  const fields={};
+  FIELDS.forEach(id=>{const el=document.getElementById(id);if(el)fields[id]=el.value;});
+
+  // Collect raw entry data (including field values from DOM)
+  const rawEntries={};
+  TYPES.forEach(type=>{
+    rawEntries[type.id]=entries[type.id].map(entry=>{
+      const flds={};
+      document.querySelectorAll(`[data-eid="${entry.id}"]`).forEach(f=>{flds[f.dataset.field]=f.value;});
+      return{id:entry.id,li:entry.li,code:entry.code,attachments:entry.attachments,fields:flds};
+    });
+  });
+
+  const state={version:1,savedAt:new Date().toISOString(),fields,rawEntries,entryCounter:ec};
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const sponsor=document.getElementById('sponsor_name')?.value?.trim()||'application';
+  a.href=url;
+  a.download=`visa-evidence-save-${sponsor.toLowerCase().replace(/\s+/g,'-')}-${new Date().toISOString().slice(0,10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showStatus('✓ Progress saved — keep this .json file safe alongside your evidence folder.',true);
+}
+
+function loadState(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const state=JSON.parse(e.target.result);
+      if(!state.version||!state.fields||!state.rawEntries){throw new Error('Invalid save file');}
+
+      // Restore simple fields — convert any ISO dates to DD/MM/YYYY
+      Object.entries(state.fields).forEach(([id,val])=>{
+        const el=document.getElementById(id);
+        if(!el)return;
+        // If value looks like ISO date YYYY-MM-DD, convert to DD/MM/YYYY
+        el.value = /^\d{4}-\d{2}-\d{2}$/.test(val) ? isoToDMY(val) : val;
+      });
+
+      // Clear all existing entries
+      TYPES.forEach(type=>{
+        entries[type.id]=[];
+        document.getElementById(`entries_${type.id}`).innerHTML='';
+      });
+      ec=0;
+
+      // Restore entries
+      TYPES.forEach(type=>{
+        const saved=state.rawEntries[type.id]||[];
+        saved.forEach(saved_entry=>{
+          // Temporarily override ec to restore original id
+          ec=Math.max(ec,saved_entry.id);
+          const id=saved_entry.id;
+          const code=saved_entry.code;
+          entries[type.id].push({id,li:saved_entry.li,code,attachments:saved_entry.attachments||[]});
+
+          // Build the card HTML (same as addEntry but without pushing to entries[])
+          const type_def=TYPES.find(t=>t.id===type.id);
+          const mf=type_def.fields.filter(f=>!["note","summary","description","gap_reason"].includes(f));
+          const tf=type_def.fields.filter(f=>["note","summary","description","gap_reason"].includes(f));
+          const cols=Math.min(mf.length,3);
+          let fh=`<div style="display:grid;grid-template-columns:repeat(${cols},1fr);gap:10px;${tf.length?'margin-bottom:10px':''}">`;
+          mf.forEach(f=>{
+            const d=FD[f];
+            fh+=`<div class="field"><label>${d.label}</label>`;
+            if(d.type==='select') fh+=`<select data-eid="${id}" data-field="${f}" onchange="liveUpdate()">`+d.options.map(o=>`<option>${o}</option>`).join('')+`</select>`;
+            else if(f==='date') fh+=`<div class="date-wrap"><input type="text" data-eid="${id}" data-field="${f}" placeholder="DD/MM/YYYY" maxlength="10" oninput="formatDateInput(this);liveUpdate()" autocomplete="off"><button class="date-cal-btn" type="button" onclick="openDatePicker(this.previousElementSibling)" title="Open calendar">📅</button></div>`;
+            else fh+=`<input type="${d.type}" data-eid="${id}" data-field="${f}" placeholder="${d.placeholder||''}" oninput="liveUpdate()">`;
+            fh+=`</div>`;
+          });
+          fh+=`</div>`;
+          tf.forEach(f=>{
+            const d=FD[f];
+            fh+=`<div class="field"><label>${d.label}</label><textarea data-eid="${id}" data-field="${f}" placeholder="${d.placeholder||''}" rows="2" oninput="liveUpdate()"></textarea></div>`;
+          });
+          const attSection=type.id==='gap'?'':`<div class="att-row"><div class="att-lbl">📎 Attachments <span style="color:var(--fnt);font-weight:400">(images &amp; PDFs embedded in final PDF)</span></div><div class="att-list" id="atts_${id}"></div><div class="att-add-row"><button class="att-add" onclick="document.getElementById('file_${id}').click()">📁 Upload file</button><input class="att-file-input" type="file" id="file_${id}" accept="image/*,.pdf" onchange="handleFileUpload(${id}, this)"><button class="att-add" onclick="addAttManual(${id})">+ Add reference only</button></div></div>`;
+          const card=document.createElement('div');
+          card.className=`entry-card ${type.id}`;card.id=`entry_${id}`;
+          card.innerHTML=`<button class="entry-rm" onclick="removeEntry('${type.id}',${id})">×</button><div><span class="ref-badge" id="ref_${id}">${code}</span></div>${fh}${attSection}`;
+          document.getElementById(`entries_${type.id}`).appendChild(card);
+
+          // Restore field values — convert any ISO dates to DD/MM/YYYY
+          Object.entries(saved_entry.fields||{}).forEach(([field,val])=>{
+            const el=document.querySelector(`[data-eid="${id}"][data-field="${field}"]`);
+            if(!el)return;
+            el.value = (field==='date' && /^\d{4}-\d{2}-\d{2}$/.test(val)) ? isoToDMY(val) : val;
+          });
+
+          // Restore attachment tags
+          (saved_entry.attachments||[]).forEach(att=>{
+            renderAttTag(id, att);
+          });
+
+          updCount(type.id);
+        });
+      });
+
+      updTotal();liveUpdate();runWeaknessCheck();
+      showStatus(`✓ Save file loaded — ${Object.values(state.rawEntries).flat().length} entries restored.`,true);
+    }catch(err){
+      showStatus('Could not load save file — make sure you selected the correct .json file.',false);
+    }
+    // Reset file input so same file can be re-loaded if needed
+    event.target.value='';
+  };
+  reader.readAsText(file);
+}
+
+// ── DOWNLOAD ZIP ───────────────────────────────────────────────
+const FOLDER_MAP={
+  flight:'01_flights-and-travel',
+  airbnb:'02_accommodation',
+  transfer:'03_bank-transfers',
+  photo:'04_photos-and-memories',
+  gap:'05_gap-explanations',
+};
+
+async function downloadZip(){
+  if(typeof JSZip==='undefined'){
+    showStatus('ZIP library not loaded — check your internet connection and refresh.',false);
+    return;
+  }
+  const data=collectData();
+  const sponsor=(data.sponsor||'application').toLowerCase().replace(/\s+/g,'-');
+  const dateStr=new Date().toISOString().slice(0,10);
+  const root=`visa-evidence-${sponsor}-${dateStr}`;
+
+  const zip=new JSZip();
+  const rootFolder=zip.folder(root);
+
+  // ── Pre-create ALL folders unconditionally ──────────────────
+  const allFolders=[
+    '00_statements',
+    '00_save-file',
+    '01_flights-and-travel',
+    '02_accommodation',
+    '03_bank-transfers',
+    '04_photos-and-memories',
+    '05_gap-explanations',
+  ];
+
+  const folderDesc={
+    '00_statements':        'Personal statements, witness letters, benefit award letters',
+    '00_save-file':         'Your .json save file — reload progress into the builder anytime',
+    '01_flights-and-travel':'Booking confirmations, boarding passes, e-tickets (FLT-xxx)',
+    '02_accommodation':     'Airbnb/hotel receipts, booking confirmations (ACM-xxx)',
+    '03_bank-transfers':    'Bank statement pages showing transfers between you (TRF-xxx)',
+    '04_photos-and-memories':'Photos together — holidays, family events, everyday life (PHT-xxx)',
+    '05_gap-explanations':  'Any supporting documents for periods of limited contact (GAP-xxx)',
+  };
+
+  allFolders.forEach(folder=>{
+    // Use JSZip's folder() API — this creates an explicit directory entry
+    const f=rootFolder.folder(folder);
+    const desc=folderDesc[folder]||'Evidence files';
+    f.file('READY-FOR-FILES.txt',
+      `${folder.toUpperCase()}\n${'='.repeat(50)}\n\n`+
+      `${desc}\n\n`+
+      `HOW TO USE:\n`+
+      `  1. Copy your evidence files into this folder\n`+
+      `  2. Rename each file to match its reference code:\n`+
+      `       FLT-001_booking-confirmation.pdf\n`+
+      `       PHT-002_photo-at-paris.jpg\n`+
+      `  3. Delete any placeholder .txt files once replaced\n\n`+
+      `The reference code for each piece of evidence is shown\n`+
+      `on the timeline entry in the builder and in the PDF.\n`
+    );
+  });
+
+  // ── README ──────────────────────────────────────────────────
+  const relStart=data.rel_start?new Date((dmyToISO(data.rel_start)||data.rel_start)+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}):'';
+  let readme=`UK FAMILY VISA — EVIDENCE PACK\n${'='.repeat(50)}\n\n`;
+  if(data.sponsor)   readme+=`Sponsor:        ${data.sponsor}\n`;
+  if(data.applicant) readme+=`Applicant:      ${data.applicant}\n`;
+  if(relStart)       readme+=`Together since: ${relStart}\n`;
+  if(data.app_ref)   readme+=`Home Office ref:${data.app_ref}\n`;
+  readme+=`Created:        ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}\n\n`;
+  readme+=`FOLDER STRUCTURE\n${'─'.repeat(50)}\n`;
+  allFolders.forEach(f=>readme+=`  ${f}/\n`);
+  readme+=`\nREFERENCE CODE GUIDE\n${'─'.repeat(50)}\n`;
+  readme+=`  FLT = Flights & Travel\n  ACM = Accommodation\n  TRF = Bank Transfers\n`;
+  readme+=`  PHT = Photos & Memories\n  GAP = Gap Explanations\n\n`;
+  readme+=`HOW TO USE\n${'─'.repeat(50)}\n`;
+  readme+=`1. Add your evidence files to the correct subfolder\n`;
+  readme+=`2. Rename each file to match its reference code\n`;
+  readme+=`   e.g.  FLT-001_booking-confirmation.pdf\n`;
+  readme+=`         PHT-002_photo-at-eiffel-tower.jpg\n`;
+  readme+=`3. Refer to the placeholder .txt files for exactly what goes where\n`;
+  readme+=`4. To reload your builder progress, click "Load save" and select\n`;
+  readme+=`   the .json file in the 00_save-file folder\n\n`;
+  readme+=`NOT LEGAL ADVICE — consult an OISC-registered adviser for complex cases.\n`;
+  rootFolder.file('README.txt', readme);
+
+  // ── Statements folder guide ──────────────────────────────────
+  const appSlug=data.applicant?(data.applicant.toLowerCase().replace(/\s+/g,'-')):'applicant';
+  let stmtGuide=`STATEMENTS & KEY DOCUMENTS\n${'='.repeat(50)}\n\n`;
+  stmtGuide+=`Place the following in this folder:\n\n`;
+  stmtGuide+=`[ ] sponsor-personal-statement-SIGNED.pdf\n    Print from PDF, sign, scan back in\n\n`;
+  stmtGuide+=`[ ] ${appSlug}-personal-statement-SIGNED.pdf\n    Applicant's signed statement\n\n`;
+  if(data.wit_name){
+    const witSlug=data.wit_name.toLowerCase().replace(/\s+/g,'-');
+    stmtGuide+=`[ ] witness-letter-${witSlug}-SIGNED.pdf\n    Letter from ${data.wit_name} (${data.wit_rel||'witness'})\n\n`;
+  }
+  stmtGuide+=`[ ] adequate-maintenance-calculator.pdf\n    Your completed maintenance calculator output\n\n`;
+  stmtGuide+=`[ ] disability-benefit-award-letter.pdf\n    Sponsor PIP/DLA/AA/Carer's Allowance award letter\n`;
+  rootFolder.folder('00_statements').file('READY-FOR-FILES.txt', stmtGuide);
+
+  // ── Entry placeholders ────────────────────────────────────────
+  const allEntries=collectEntries();
+  allEntries.forEach(entry=>{
+    if(entry.type==='gap') return;
+    const folderName=FOLDER_MAP[entry.type]||'08_other';
+    const f=rootFolder.folder(folderName);
+    const code=entry.refCode;
+    const desc=entry.main||entry.note||entry.summary||entry.description||'';
+    const entryDate=entry.date?new Date((dmyToISO(entry.date)||entry.date)+'T12:00:00').toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'}):'No date';
+
+    if(entry.attachments&&entry.attachments.length){
+      entry.attachments.forEach(att=>{
+        const safeName=(att.desc||'file').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/-+/g,'-').replace(/^-|-$/g,'');
+        const ext=att.fmt==='PDF'?'pdf':att.fmt==='PNG'?'png':'jpg';
+        const targetName=`${code}_${safeName}.${ext}`;
+        if(att.b64){
+          try{
+            const b64data=att.b64.includes(',')? att.b64.split(',')[1] : att.b64;
+            f.file(att.filename||targetName, b64data, {base64:true});
+          }catch(e){}
+        } else {
+          f.file(`${code}_${safeName}.REPLACE-WITH-ACTUAL.txt`,
+            `PLACEHOLDER — REPLACE WITH YOUR ACTUAL FILE\n${'='.repeat(45)}\n\n`+
+            `Reference: ${code}\nDate:      ${entryDate}\nEntry:     ${desc}\nFile:      ${att.desc}\nFormat:    ${att.fmt}\n\n`+
+            `RENAME YOUR FILE TO:\n  ${targetName}\n\nThen delete this .txt file.\n`
+          );
+        }
+      });
+    } else {
+      f.file(`${code}_ADD-FILES-HERE.txt`,
+        `ADD EVIDENCE FILES FOR THIS ENTRY\n${'='.repeat(45)}\n\n`+
+        `Reference: ${code}\nDate:      ${entryDate}\nEntry:     ${desc}\n\n`+
+        `Name your files:\n  ${code}_description.pdf\n  ${code}_another-file.jpg\n\nThen delete this .txt file.\n`
+      );
+    }
+  });
+
+  // ── Save file ─────────────────────────────────────────────────
+  const state={version:1,savedAt:new Date().toISOString(),fields:{},rawEntries:{},entryCounter:ec};
+  const FIELDS=['sponsor_name','applicant_name','rel_start','applicant_country','app_ref',
+    'rel_status','cohabited','sponsor_prev','applicant_prev','fin_exemption','fin_summary',
+    's_how_met','s_develop','s_maintain','s_future','s_gaps','s_other',
+    'a_how_met','a_develop','a_maintain','a_future','a_gaps','wit_name','wit_rel','wit_summary'];
+  FIELDS.forEach(id=>{const el=document.getElementById(id);if(el)state.fields[id]=el.value;});
+  TYPES.forEach(type=>{
+    state.rawEntries[type.id]=entries[type.id].map(entry=>{
+      const flds={};
+      document.querySelectorAll(`[data-eid="${entry.id}"]`).forEach(f=>{flds[f.dataset.field]=f.value;});
+      return{id:entry.id,li:entry.li,code:entry.code,attachments:entry.attachments,fields:flds};
+    });
+  });
+  const saveFolder=rootFolder.folder('00_save-file');
+  saveFolder.file(`visa-evidence-save-${sponsor}-${dateStr}.json`, JSON.stringify(state,null,2));
+  saveFolder.file('READY-FOR-FILES.txt',
+    `SAVE FILE\n${'='.repeat(50)}\n\n`+
+    `The .json file in this folder saves all your builder progress.\n\n`+
+    `TO RELOAD:\n`+
+    `  1. Open timeline_builder.html\n`+
+    `  2. Click "Load save" in the bottom bar\n`+
+    `  3. Select the .json file from this folder\n`
+  );
+
+  // ── Generate ZIP ──────────────────────────────────────────────
+  try{
+    const blob=await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download=`${root}.zip`;
+    a.click();
+    URL.revokeObjectURL(url);
+    const entryCount=allEntries.filter(e=>e.type!=='gap').length;
+    showStatus(`✓ ZIP downloaded — ${allFolders.length} folders created, ${entryCount} evidence placeholders. Unzip and start adding your files.`,true);
+  }catch(e){
+    showStatus('Could not generate ZIP — '+e.message, false);
+  }
+}
+
+
+// ── BUILD SECTIONS ─────────────────────────────────────────────
+const container=document.getElementById('allSections');
+TYPES.forEach(type=>{
+  const s=document.createElement('div');s.className='entries-sec';
+  const hint=type.id==='gap'?'<span style="font-size:11px;color:var(--mut);margin-left:8px">Use this to explain periods with little contact evidence</span>':'';
+  s.innerHTML=`<div class="sec-hdr"><div class="dot" style="background:${type.color}"></div><span class="sec-lbl">${type.icon} ${type.label}</span><span class="sec-cnt" id="count_${type.id}">0</span>${hint}</div><div id="entries_${type.id}"></div><button class="btn-add" onclick="addEntry('${type.id}')">+ Add entry</button>`;
+  container.appendChild(s);
+});
+
+// Start checker
+runWeaknessCheck();
+</script>
+<div id="lightbox" onclick="this.classList.remove('open')">
+  <img id="lightbox-img" src="" alt="Evidence preview">
+</div>
+</body>
+</html>
