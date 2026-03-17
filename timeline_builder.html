@@ -1529,7 +1529,7 @@ async function downloadZip(){
   });
 
   // ── Save file ─────────────────────────────────────────────────
-  const state={version:1,savedAt:new Date().toISOString(),fields:{},rawEntries:{},entryCounter:ec};
+  const state={version:1,savedAt:new Date().toISOString(),fields:{},rawEntries:{},entryCounter:ec,contactData:calSerialise()};
   const FIELDS=['sponsor_name','applicant_name','rel_start','applicant_country','app_ref',
     'rel_status','cohabited','sponsor_prev','applicant_prev','fin_exemption','fin_summary',
     's_how_met','s_develop','s_maintain','s_future','s_gaps','s_other',
@@ -1762,56 +1762,78 @@ function calParseFile(file,platform){
   reader.readAsText(file);
 }
 function calParseWhatsApp(text){
-  let count=0; const seen=new Set();
+  // Collect all contact types per day first, then add
+  const dayTypes={};
   for(const line of text.split('\n')){
-    const m=line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}),/);
+    // Match M/D/YY or DD/MM/YY — try both orders
+    const m=line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})[,\s]/);
     if(!m) continue;
-    const ds=`20${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
-    if(isNaN(new Date(ds))||seen.has(ds)) continue;
-    seen.add(ds);
+    let ds;
+    // Try to build a valid date — attempt DD/MM/YY (UK) first, then M/D/YY (US)
+    const a=parseInt(m[1]),b=parseInt(m[2]),yr=m[3].length===2?'20'+m[3]:m[3];
+    // If first number >12 it must be day (DD/MM)
+    if(a>12)      ds=`${yr}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`;
+    else if(b>12) ds=`${yr}-${String(a).padStart(2,'0')}-${String(b).padStart(2,'0')}`;
+    else          ds=`${yr}-${String(b).padStart(2,'0')}-${String(a).padStart(2,'0')}`;// default DD/MM
+    if(isNaN(new Date(ds))) continue;
+    if(!dayTypes[ds]) dayTypes[ds]=new Set();
     const lower=line.toLowerCase();
-    if(lower.includes('video call')) calAddDay(ds,'video');
-    else if(lower.includes('voice call')||lower.includes('missed call')||lower.includes('audio call')) calAddDay(ds,'call');
-    else calAddDay(ds,'sms');
-    count++;
+    if(lower.includes('video call')||lower.includes('video calling')) dayTypes[ds].add('video');
+    else if(lower.includes('voice call')||lower.includes('audio call')||lower.includes('missed voice')||lower.includes('missed call')||lower.includes('outgoing call')||lower.includes('incoming call')) dayTypes[ds].add('call');
+    else dayTypes[ds].add('sms');
   }
+  let count=0;
+  Object.entries(dayTypes).forEach(([ds,types])=>{
+    types.forEach(t=>calAddDay(ds,t)); count++;
+  });
   return count;
 }
 function calParseSignal(text){
-  let count=0; const seen=new Set();
+  const dayTypes={};
   for(const line of text.split('\n')){
     const m=line.match(/^\[(\d{4})-(\d{2})-(\d{2})\s/);
     if(!m) continue;
     const ds=`${m[1]}-${m[2]}-${m[3]}`;
-    if(isNaN(new Date(ds))||seen.has(ds)) continue;
-    seen.add(ds);
+    if(isNaN(new Date(ds))) continue;
+    if(!dayTypes[ds]) dayTypes[ds]=new Set();
     const lower=line.toLowerCase();
-    if(lower.includes('outgoing call')||lower.includes('incoming call')||lower.includes('missed call')) calAddDay(ds,'call');
-    else calAddDay(ds,'sms');
-    count++;
+    if(lower.includes('outgoing call')||lower.includes('incoming call')||lower.includes('missed call')) dayTypes[ds].add('call');
+    else dayTypes[ds].add('sms');
   }
+  let count=0;
+  Object.entries(dayTypes).forEach(([ds,types])=>{
+    types.forEach(t=>calAddDay(ds,t)); count++;
+  });
   return count;
 }
 function calParseDiscord(text){
-  let count=0; const seen=new Set();
+  const dayTypes={};
   for(const line of text.split('\n')){
     const m=line.match(/\[(\d{1,2})\/(\d{1,2})\/(\d{4})\s/);
     if(!m) continue;
     const ds=`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
-    if(isNaN(new Date(ds))||seen.has(ds)) continue;
-    seen.add(ds); calAddDay(ds,'sms'); count++;
+    if(isNaN(new Date(ds))) continue;
+    if(!dayTypes[ds]) dayTypes[ds]=new Set(['sms']);
   }
+  let count=0;
+  Object.entries(dayTypes).forEach(([ds,types])=>{
+    types.forEach(t=>calAddDay(ds,t)); count++;
+  });
   return count;
 }
 function calParseCallLog(text){
-  let count=0; const seen=new Set();
+  const dayTypes={};
   for(const line of text.split('\n')){
     const m=line.match(/(\d{4}-\d{2}-\d{2})/);
     if(!m) continue;
     const ds=m[1];
-    if(isNaN(new Date(ds))||seen.has(ds)) continue;
-    seen.add(ds); calAddDay(ds,'call'); count++;
+    if(isNaN(new Date(ds))) continue;
+    if(!dayTypes[ds]) dayTypes[ds]=new Set(['call']);
   }
+  let count=0;
+  Object.entries(dayTypes).forEach(([ds,types])=>{
+    types.forEach(t=>calAddDay(ds,t)); count++;
+  });
   return count;
 }
 function calParseAuto(text){
