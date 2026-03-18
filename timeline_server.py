@@ -852,7 +852,7 @@ def build_pdf(data):
     # ── TIMELINE ──────────────────────────────────────────────
     story.append(PageBreak())
     story.append(section_header("CHRONOLOGICAL TIMELINE OF RELATIONSHIP"))
-    story.append(Spacer(1,8))
+    story.append(Spacer(1,6))
 
     prev_year = None
     for entry in entries:
@@ -863,107 +863,182 @@ def build_pdf(data):
         edate=entry.get("date","")
         atts=entry.get("attachments",[])
 
-        year=edate[:4] if edate else None
-        if year and year!=prev_year:
-            prev_year=year
-            yd=Table([[Paragraph(year,st["year_lbl"])]],colWidths=[W])
-            yd.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),DARK),("LEFTPADDING",(0,0),(-1,-1),14),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
-            story.append(Spacer(1,6))
-            story.append(yd)
+        # ── Year divider — slim accent bar ────────────────────
+        year = dmy_to_iso(edate)[:4] if edate else None
+        if year and year != prev_year:
+            prev_year = year
+            yd = Table([[
+                Paragraph(year, mk_style(f"yr{year}", fontName="Times-Bold",
+                    fontSize=11, textColor=WHITE, leading=14))
+            ]], colWidths=[W])
+            yd.setStyle(TableStyle([
+                ("BACKGROUND",(0,0),(-1,-1), DARK),
+                ("LEFTPADDING",(0,0),(-1,-1), 10),
+                ("TOPPADDING",(0,0),(-1,-1), 3),
+                ("BOTTOMPADDING",(0,0),(-1,-1), 3),
+            ]))
             story.append(Spacer(1,5))
+            story.append(yd)
+            story.append(Spacer(1,4))
 
-        main=entry.get("main","") or ""
+        # ── Entry data ────────────────────────────────────────
+        main = entry.get("main","") or ""
         if etype=="transfer":
             amt=entry.get("amount",""); main=f"£{amt}" if amt else "Transfer"
             details=[entry.get("direction","")] if entry.get("direction") else []
             if entry.get("ref"): details.append(f"Ref: {entry['ref']}")
-        elif etype=="flight": details=[f"Booking ref: {entry['ref']}"] if entry.get("ref") else []
-        elif etype=="airbnb": details=([f"{entry['nights']} nights"] if entry.get("nights") else [])+(([f"Ref: {entry['ref']}"] if entry.get("ref") else []))
-        elif etype=="video":  details=[f"Duration: {entry['duration']}"] if entry.get("duration") else []
-        elif etype=="gap":    main=entry.get("gap_period","Gap in evidence"); details=[]
-        else: details=[]
+        elif etype=="flight":
+            details=[f"Booking ref: {entry['ref']}"] if entry.get("ref") else []
+        elif etype=="airbnb":
+            details=([f"{entry['nights']} nights"] if entry.get("nights") else [])
+            if entry.get("ref"): details.append(f"Ref: {entry['ref']}")
+        elif etype=="gap":
+            main=entry.get("gap_period","Gap in evidence"); details=[]
+        else:
+            details=[]
 
-        note=entry.get("note","") or entry.get("summary","") or entry.get("description","") or entry.get("gap_reason","") or ""
+        note = entry.get("note","") or entry.get("summary","") or entry.get("description","") or entry.get("gap_reason","") or ""
 
+        # ── Collect thumbnails (max 2 side by side) ───────────
+        thumb_items = []
+        for a in atts:
+            if a.get('isImage') and a.get('b64'):
+                thumb_items.append(('img', a))
+            elif a.get('isPDF') and a.get('b64'):
+                thumb_items.append(('pdf', a))
+        thumb_items = thumb_items[:2]  # max 2
+
+        has_thumbs = bool(thumb_items)
+        TEXT_W = W * 0.62 if has_thumbs else W
+        THUMB_W = W * 0.36  # right column when thumbs present
+        THUMB_EACH = (THUMB_W - 4*mm) / min(len(thumb_items), 2) if thumb_items else THUMB_W
+
+        # ── Left: text content ────────────────────────────────
         ref_text = f'<link dest="{gallery_anchors[code]}">{code}</link>' if code in gallery_anchors else code
-        ref_bg=Table([[Paragraph(ref_text,st["ref_code"])]],colWidths=[18*mm])
-        ref_bg.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),acc),("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),("TOPPADDING",(0,0),(-1,-1),3),("BOTTOMPADDING",(0,0),(-1,-1),3)]))
-        left_rows=[[ref_bg],[Spacer(1,4)],[Paragraph(fmt_date(edate),st["entry_date"])]]
-        left_tbl=Table(left_rows,colWidths=[W*0.27])
-        left_tbl.setStyle(TableStyle([("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)]))
 
-        right_rows=[[Paragraph(f"{mi['icon']}  {mi['label'].upper()}",mk_style(f"et{code}",fontName="Helvetica-Bold",fontSize=7,textColor=acc,charSpace=1,leading=10))]]
-        if main:right_rows+=[[Spacer(1,3)],[Paragraph(main,st["entry_main"])]]
-        if details:right_rows.append([Paragraph("  ·  ".join(details),st["entry_det"])])
-        if note:right_rows+=[[Spacer(1,3)],[Paragraph(note,st["entry_note"])]]
+        # Header line: [badge] · date · type
+        ref_bg = Table([[Paragraph(ref_text, st["ref_code"])]], colWidths=[18*mm])
+        ref_bg.setStyle(TableStyle([
+            ("BACKGROUND",(0,0),(-1,-1), acc),
+            ("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),
+            ("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2),
+        ]))
+
+        date_p = Paragraph(fmt_date(edate),
+            mk_style(f"ed{code}", fontName="Helvetica-Bold", fontSize=8.5,
+                     textColor=TEXT, leading=11))
+        type_p = Paragraph(f"{mi['icon']}  {mi['label'].upper()}",
+            mk_style(f"et{code}", fontName="Helvetica-Bold", fontSize=7,
+                     textColor=acc, charSpace=1, leading=10))
+
+        hdr_tbl = Table([[ref_bg, date_p, type_p]],
+            colWidths=[20*mm, 38*mm, TEXT_W - 60*mm])
+        hdr_tbl.setStyle(TableStyle([
+            ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+            ("LEFTPADDING",(0,0),(0,0),0),
+            ("LEFTPADDING",(1,0),(1,0),6),
+            ("LEFTPADDING",(2,0),(2,0),8),
+            ("RIGHTPADDING",(0,0),(-1,-1),4),
+            ("TOPPADDING",(0,0),(-1,-1),0),
+            ("BOTTOMPADDING",(0,0),(-1,-1),0),
+        ]))
+
+        left_rows = [[hdr_tbl]]
+        if main:
+            left_rows += [[Spacer(1,3)],
+                [Paragraph(main, mk_style(f"em{code}", fontName="Helvetica-Bold",
+                    fontSize=9, textColor=TEXT, leading=12))]]
+        if details:
+            left_rows.append([Paragraph("  ·  ".join(details),
+                mk_style(f"edt{code}", fontSize=8, textColor=MUTED, leading=11))])
+        if note:
+            left_rows += [[Spacer(1,2)],
+                [Paragraph(note, mk_style(f"en{code}", fontName="Helvetica-Oblique",
+                    fontSize=8, textColor=MUTED, leading=11))]]
+
+        # Attachment label (text only, no thumbnails here)
         if atts:
-            att_str="  ".join([f"[{a.get('fmt','?')}] {a.get('desc','')}" for a in atts])
-            right_rows+=[[Spacer(1,4)],[Paragraph(f"📎  {att_str}",mk_style(f"al{code}",fontSize=7.5,textColor=acc,leading=11))]]
+            att_str = "  ".join([f"[{a.get('fmt','?')}] {a.get('desc','')}" for a in atts])
+            left_rows += [[Spacer(1,3)],
+                [Paragraph(f"📎  {att_str}",
+                    mk_style(f"al{code}", fontSize=7, textColor=acc, leading=10))]]
 
-            # Collect thumbnails: real images + PDF placeholders
-            thumb_items = []
-            for a in atts:
-                if a.get('isImage') and a.get('b64'):
-                    thumb_items.append(('img', a))
-                elif a.get('isPDF') and a.get('b64'):
-                    thumb_items.append(('pdf', a))
+        left_tbl = Table(left_rows, colWidths=[TEXT_W])
+        left_tbl.setStyle(TableStyle([
+            ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
+            ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),1),
+        ]))
 
-            if thumb_items:
-                thumb_cells=[]
-                right_w = W * 0.70 - 16
-                n_thumbs = min(len(thumb_items), 3)
-                thumb_w = right_w / n_thumbs
-                thumb_w_mm = thumb_w / mm
+        # ── Right: thumbnails top-aligned, side by side ───────
+        if has_thumbs:
+            thumb_cells = []
+            for kind, a in thumb_items:
+                tw_mm = THUMB_EACH / mm - 2
+                if kind == 'img':
+                    thumb = image_thumbnail(a['b64'], max_w_mm=tw_mm, max_h_mm=30)
+                else:
+                    ph_w = THUMB_EACH - 2*mm
+                    thumb = Table([[Paragraph(
+                        f"📄 PDF\n{a.get('desc','')[:18]}",
+                        mk_style(f"ph{a['id']}", fontSize=6.5, textColor=MUTED,
+                                 leading=9, alignment=TA_CENTER))]],
+                        colWidths=[ph_w])
+                    thumb.setStyle(TableStyle([
+                        ("BOX",(0,0),(-1,-1),0.5,BORDER),
+                        ("BACKGROUND",(0,0),(-1,-1),LT_BG),
+                        ("ALIGN",(0,0),(-1,-1),"CENTER"),
+                        ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
+                        ("TOPPADDING",(0,0),(-1,-1),8),
+                        ("BOTTOMPADDING",(0,0),(-1,-1),8),
+                    ]))
+                if thumb:
+                    thumb_cells.append(thumb)
 
-                for kind, a in thumb_items[:3]:
-                    if kind == 'img':
-                        thumb = image_thumbnail(a['b64'], max_w_mm=thumb_w_mm-3, max_h_mm=32)
-                    else:
-                        # PDF placeholder box
-                        try:
-                            ph_w = (thumb_w_mm - 3) * mm
-                            ph_h = 32 * mm
-                            ph = Table([[Paragraph(f"📄 PDF\n{a.get('desc','')[:20]}",
-                                mk_style(f"ph{a['id']}",fontSize=7,textColor=MUTED,leading=10,alignment=TA_CENTER))]],
-                                colWidths=[ph_w])
-                            ph.setStyle(TableStyle([
-                                ("BOX",(0,0),(-1,-1),0.5,BORDER),
-                                ("BACKGROUND",(0,0),(-1,-1),LT_BG),
-                                ("ALIGN",(0,0),(-1,-1),"CENTER"),
-                                ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-                                ("TOPPADDING",(0,0),(-1,-1),10),
-                                ("BOTTOMPADDING",(0,0),(-1,-1),10),
-                            ]))
-                            thumb = ph
-                        except:
-                            thumb = None
-                    if thumb:
-                        cap = Paragraph(a.get('desc','')[:30], mk_style(f"tc{code}{a['id']}",fontSize=7,textColor=MUTED,leading=9,alignment=TA_CENTER))
-                        thumb_cells.append([thumb, cap])
+            if thumb_cells:
+                n = len(thumb_cells)
+                col_ws = [THUMB_EACH] * n
+                # Pad to 2 columns if only 1 thumb, so it stays right-aligned
+                while len(thumb_cells) < 2:
+                    thumb_cells.append(Spacer(1,1))
+                    col_ws.append(THUMB_EACH)
+                thumb_tbl = Table([thumb_cells], colWidths=col_ws)
+                thumb_tbl.setStyle(TableStyle([
+                    ("ALIGN",(0,0),(-1,-1),"RIGHT"),
+                    ("VALIGN",(0,0),(-1,-1),"TOP"),
+                    ("LEFTPADDING",(0,0),(-1,-1),2),("RIGHTPADDING",(0,0),(-1,-1),0),
+                    ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0),
+                ]))
+                right_col = [[thumb_tbl]]
+            else:
+                right_col = [[Spacer(1,1)]]
 
-                if thumb_cells:
-                    n = len(thumb_cells)
-                    col_w = right_w / n
-                    thumb_row=Table([[cell[0] for cell in thumb_cells]],colWidths=[col_w]*n)
-                    cap_row=Table([[cell[1] for cell in thumb_cells]],colWidths=[col_w]*n)
-                    thumb_row.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"CENTER"),("VALIGN",(0,0),(-1,-1),"BOTTOM"),("LEFTPADDING",(0,0),(-1,-1),2),("RIGHTPADDING",(0,0),(-1,-1),2),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0)]))
-                    cap_row.setStyle(TableStyle([("ALIGN",(0,0),(-1,-1),"CENTER"),("LEFTPADDING",(0,0),(-1,-1),2),("RIGHTPADDING",(0,0),(-1,-1),2)]))
-                    right_rows+=[[Spacer(1,5)],[thumb_row],[cap_row]]
+            right_tbl = Table(right_col, colWidths=[THUMB_W])
+            right_tbl.setStyle(TableStyle([
+                ("VALIGN",(0,0),(-1,-1),"TOP"),
+                ("ALIGN",(0,0),(-1,-1),"RIGHT"),
+                ("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),0),
+                ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0),
+            ]))
+            cols = [left_tbl, right_tbl]
+            col_widths = [TEXT_W, THUMB_W]
+        else:
+            cols = [left_tbl]
+            col_widths = [TEXT_W]
 
-        right_tbl=Table(right_rows,colWidths=[W*0.70])
-        right_tbl.setStyle(TableStyle([("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),1)]))
-        row_tbl=Table([[left_tbl,right_tbl]],colWidths=[W*0.30,W*0.70])
+        # ── Outer card ────────────────────────────────────────
+        row_tbl = Table([cols], colWidths=col_widths)
         row_tbl.setStyle(TableStyle([
-            ("BACKGROUND",(0,0),(-1,-1),bg),
-            ("LEFTPADDING",(0,0),(0,-1),8),("LEFTPADDING",(1,0),(1,-1),8),
-            ("RIGHTPADDING",(0,0),(-1,-1),8),
-            ("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),
+            ("BACKGROUND",(0,0),(-1,-1), bg),
+            ("LEFTPADDING",(0,0),(-1,-1), 8),
+            ("RIGHTPADDING",(0,0),(-1,-1), 6),
+            ("TOPPADDING",(0,0),(-1,-1), 5),
+            ("BOTTOMPADDING",(0,0),(-1,-1), 5),
             ("VALIGN",(0,0),(-1,-1),"TOP"),
-            ("LINEBEFORE",(0,0),(0,-1),3,acc),
-            ("BOX",(0,0),(-1,-1),0.5,BORDER),
+            ("LINEBEFORE",(0,0),(0,-1), 3, acc),
+            ("BOX",(0,0),(-1,-1), 0.5, BORDER),
         ]))
         story.append(KeepTogether(row_tbl))
-        story.append(Spacer(1,3))
+        story.append(Spacer(1,2))
 
     # ── IMAGE GALLERY ─────────────────────────────────────────
     # Collect images grouped by entry type, preserving type order
