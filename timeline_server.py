@@ -899,31 +899,30 @@ def build_pdf(data):
 
         note = entry.get("note","") or entry.get("summary","") or entry.get("description","") or entry.get("gap_reason","") or ""
 
-        # ── Collect thumbnails (max 2 side by side) ───────────
+        # ── Collect thumbnails (max 2) ────────────────────────
         thumb_items = []
         for a in atts:
             if a.get('isImage') and a.get('b64'):
                 thumb_items.append(('img', a))
             elif a.get('isPDF') and a.get('b64'):
                 thumb_items.append(('pdf', a))
-        thumb_items = thumb_items[:2]  # max 2
-
+        thumb_items = thumb_items[:2]
         has_thumbs = bool(thumb_items)
-        THUMB_W = 52*mm  # fixed width right column — predictable, no rounding slop
-        TEXT_W = (W - THUMB_W) if has_thumbs else W
-        THUMB_EACH = (THUMB_W - 8*mm) / min(len(thumb_items), 2) if thumb_items else THUMB_W
 
-        # ── Left: text content ────────────────────────────────
+        # Card inner width (W minus outer card left+right padding of 8+6)
+        INNER = W - 14
+        THUMB_COL  = 46*mm if has_thumbs else 0
+        TEXT_COL   = INNER - THUMB_COL
+        THUMB_EACH = (THUMB_COL - 4*mm) / 2  # two thumb slots, 2mm gutter each side
+
+        # ── Text block ────────────────────────────────────────
         ref_text = f'<link dest="{gallery_anchors[code]}">{code}</link>' if code in gallery_anchors else code
-
-        # Header line: [badge] · date · type
         ref_bg = Table([[Paragraph(ref_text, st["ref_code"])]], colWidths=[18*mm])
         ref_bg.setStyle(TableStyle([
             ("BACKGROUND",(0,0),(-1,-1), acc),
             ("LEFTPADDING",(0,0),(-1,-1),5),("RIGHTPADDING",(0,0),(-1,-1),5),
             ("TOPPADDING",(0,0),(-1,-1),2),("BOTTOMPADDING",(0,0),(-1,-1),2),
         ]))
-
         date_p = Paragraph(fmt_date(edate),
             mk_style(f"ed{code}", fontName="Helvetica-Bold", fontSize=8.5,
                      textColor=TEXT, leading=11))
@@ -931,102 +930,86 @@ def build_pdf(data):
             mk_style(f"et{code}", fontName="Helvetica-Bold", fontSize=7,
                      textColor=acc, charSpace=1, leading=10))
 
-        hdr_tbl = Table([[ref_bg, date_p, type_p]],
-            colWidths=[20*mm, 36*mm, TEXT_W - 58*mm])
+        # Header row — 3 cols that sum exactly to TEXT_COL
+        C1, C2 = 20*mm, 38*mm
+        C3 = TEXT_COL - C1 - C2
+        hdr_tbl = Table([[ref_bg, date_p, type_p]], colWidths=[C1, C2, C3])
         hdr_tbl.setStyle(TableStyle([
             ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
             ("LEFTPADDING",(0,0),(0,0),0),
             ("LEFTPADDING",(1,0),(1,0),6),
-            ("LEFTPADDING",(2,0),(2,0),8),
-            ("RIGHTPADDING",(0,0),(-1,-1),4),
+            ("LEFTPADDING",(2,0),(2,0),10),
+            ("RIGHTPADDING",(0,0),(-1,-1),0),
             ("TOPPADDING",(0,0),(-1,-1),0),
             ("BOTTOMPADDING",(0,0),(-1,-1),0),
         ]))
 
-        left_rows = [[hdr_tbl]]
+        text_rows = [[hdr_tbl]]
         if main:
-            left_rows += [[Spacer(1,3)],
+            text_rows += [[Spacer(1,3)],
                 [Paragraph(main, mk_style(f"em{code}", fontName="Helvetica-Bold",
                     fontSize=9, textColor=TEXT, leading=12))]]
         if details:
-            left_rows.append([Paragraph("  ·  ".join(details),
+            text_rows.append([Paragraph("  ·  ".join(details),
                 mk_style(f"edt{code}", fontSize=8, textColor=MUTED, leading=11))])
         if note:
-            left_rows += [[Spacer(1,2)],
+            text_rows += [[Spacer(1,2)],
                 [Paragraph(note, mk_style(f"en{code}", fontName="Helvetica-Oblique",
                     fontSize=8, textColor=MUTED, leading=11))]]
-
-        # Attachment label (text only, no thumbnails here)
         if atts:
             att_str = "  ".join([f"[{a.get('fmt','?')}] {a.get('desc','')}" for a in atts])
-            left_rows += [[Spacer(1,3)],
+            text_rows += [[Spacer(1,3)],
                 [Paragraph(f"📎  {att_str}",
                     mk_style(f"al{code}", fontSize=7, textColor=acc, leading=10))]]
 
-        left_tbl = Table(left_rows, colWidths=[TEXT_W])
-        left_tbl.setStyle(TableStyle([
-            ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),0),
+        text_tbl = Table(text_rows, colWidths=[TEXT_COL])
+        text_tbl.setStyle(TableStyle([
+            ("LEFTPADDING",(0,0),(-1,-1),0),("RIGHTPADDING",(0,0),(-1,-1),4),
             ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),1),
         ]))
 
-        # ── Right: thumbnails top-aligned, side by side ───────
+        # ── Thumb block ───────────────────────────────────────
         if has_thumbs:
             thumb_cells = []
             for kind, a in thumb_items:
-                tw_mm = THUMB_EACH / mm - 3
                 if kind == 'img':
-                    thumb = image_thumbnail(a['b64'], max_w_mm=tw_mm, max_h_mm=28)
+                    thumb = image_thumbnail(a['b64'],
+                        max_w_mm=THUMB_EACH/mm, max_h_mm=25)
                 else:
-                    ph_w = THUMB_EACH - 2*mm
                     thumb = Table([[Paragraph(
-                        f"📄 PDF\n{a.get('desc','')[:18]}",
-                        mk_style(f"ph{a['id']}", fontSize=6.5, textColor=MUTED,
-                                 leading=9, alignment=TA_CENTER))]],
-                        colWidths=[ph_w])
+                        f"📄\n{a.get('desc','')[:16]}",
+                        mk_style(f"ph{a['id']}", fontSize=6, textColor=MUTED,
+                                 leading=8, alignment=TA_CENTER))]],
+                        colWidths=[THUMB_EACH])
                     thumb.setStyle(TableStyle([
                         ("BOX",(0,0),(-1,-1),0.5,BORDER),
                         ("BACKGROUND",(0,0),(-1,-1),LT_BG),
-                        ("ALIGN",(0,0),(-1,-1),"CENTER"),
                         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-                        ("TOPPADDING",(0,0),(-1,-1),8),
-                        ("BOTTOMPADDING",(0,0),(-1,-1),8),
+                        ("TOPPADDING",(0,0),(-1,-1),6),
+                        ("BOTTOMPADDING",(0,0),(-1,-1),6),
                     ]))
-                if thumb:
-                    thumb_cells.append(thumb)
+                thumb_cells.append(thumb if thumb else Spacer(THUMB_EACH,1))
 
-            if thumb_cells:
-                n = len(thumb_cells)
-                col_ws = [THUMB_EACH] * n
-                # Pad to 2 columns if only 1 thumb, so it stays right-aligned
-                while len(thumb_cells) < 2:
-                    thumb_cells.append(Spacer(1,1))
-                    col_ws.append(THUMB_EACH)
-                thumb_tbl = Table([thumb_cells], colWidths=col_ws)
-                thumb_tbl.setStyle(TableStyle([
-                    ("ALIGN",(0,0),(-1,-1),"RIGHT"),
-                    ("VALIGN",(0,0),(-1,-1),"TOP"),
-                    ("LEFTPADDING",(0,0),(-1,-1),2),("RIGHTPADDING",(0,0),(-1,-1),0),
-                    ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0),
-                ]))
-                right_col = [[thumb_tbl]]
-            else:
-                right_col = [[Spacer(1,1)]]
+            # Always exactly 2 cells
+            while len(thumb_cells) < 2:
+                thumb_cells.append(Spacer(THUMB_EACH, 1))
 
-            right_tbl = Table(right_col, colWidths=[THUMB_W])
-            right_tbl.setStyle(TableStyle([
+            thumb_tbl = Table([thumb_cells], colWidths=[THUMB_EACH, THUMB_EACH])
+            thumb_tbl.setStyle(TableStyle([
                 ("VALIGN",(0,0),(-1,-1),"TOP"),
-                ("ALIGN",(0,0),(-1,-1),"RIGHT"),
-                ("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),0),
-                ("TOPPADDING",(0,0),(-1,-1),0),("BOTTOMPADDING",(0,0),(-1,-1),0),
+                ("LEFTPADDING",(0,0),(-1,-1),2),
+                ("RIGHTPADDING",(0,0),(-1,-1),0),
+                ("TOPPADDING",(0,0),(-1,-1),0),
+                ("BOTTOMPADDING",(0,0),(-1,-1),0),
             ]))
-            cols = [left_tbl, right_tbl]
-            col_widths = [TEXT_W, THUMB_W]
+            card_content = [[text_tbl, thumb_tbl]]
+            card_widths  = [TEXT_COL, THUMB_COL]
         else:
-            cols = [left_tbl]
-            col_widths = [TEXT_W]
+            card_content = [[text_tbl]]
+            card_widths  = [INNER]
 
         # ── Outer card ────────────────────────────────────────
-        row_tbl = Table([cols], colWidths=col_widths)
+        row_tbl = Table(card_content, colWidths=card_widths)
         row_tbl.setStyle(TableStyle([
             ("BACKGROUND",(0,0),(-1,-1), bg),
             ("LEFTPADDING",(0,0),(-1,-1), 8),
