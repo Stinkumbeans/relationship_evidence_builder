@@ -450,21 +450,22 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
         date_range = f"{dates[0]} — {dates[-1]}"
 
     stat_data = [
-        [Paragraph("<b>Total contact days</b>", mk_style("cs1", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Date range</b>",          mk_style("cs2", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Most frequent type</b>",  mk_style("cs3", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Video calls</b>",          mk_style("cs4", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Messages</b>",             mk_style("cs5", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Voice calls</b>",          mk_style("cs6", fontSize=8, textColor=MUTED, leading=11))],
-        [Paragraph(str(total),          mk_style("cv1", fontName="Helvetica-Bold", fontSize=14, textColor=DARK,  leading=18)),
-         Paragraph(date_range,          mk_style("cv2", fontName="Helvetica-Bold", fontSize=9,  textColor=DARK,  leading=13)),
-         Paragraph(mc_label,            mk_style("cv3", fontName="Helvetica-Bold", fontSize=10, textColor=GOLD,  leading=14)),
-         Paragraph(str(counts['video']),mk_style("cv4", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['video'],  leading=18)),
-         Paragraph(str(counts['sms']),  mk_style("cv5", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['sms'],   leading=18)),
-         Paragraph(str(counts['call']), mk_style("cv6", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['call'],  leading=18))],
+        [Paragraph("<b>Total days</b>",        mk_style("cs1", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Date range</b>",         mk_style("cs2", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Most frequent</b>",      mk_style("cs3", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Video calls</b>",         mk_style("cs4", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Messages</b>",            mk_style("cs5", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Voice calls</b>",         mk_style("cs6", fontSize=8, textColor=MUTED, leading=11))],
+        [Paragraph(str(total),           mk_style("cv1", fontName="Helvetica-Bold", fontSize=14, textColor=DARK, leading=18)),
+         Paragraph(date_range,           mk_style("cv2", fontName="Helvetica-Bold", fontSize=9,  textColor=DARK, leading=13)),
+         Paragraph(mc_label,             mk_style("cv3", fontName="Helvetica-Bold", fontSize=10, textColor=GOLD, leading=14)),
+         Paragraph(str(counts['video']), mk_style("cv4", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['video'], leading=18)),
+         Paragraph(str(counts['sms']),   mk_style("cv5", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['sms'],   leading=18)),
+         Paragraph(str(counts['call']),  mk_style("cv6", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['call'],  leading=18))],
     ]
-    col_w = W / 6
-    stat_tbl = Table(stat_data, colWidths=[col_w]*6)
+    # Unequal widths — date range and most frequent need more room
+    stat_widths = [W*0.12, W*0.22, W*0.18, W*0.16, W*0.16, W*0.16]
+    stat_tbl = Table(stat_data, colWidths=stat_widths)
     stat_tbl.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(-1,-1), LT_BG),
         ("BOX",(0,0),(-1,-1),0.5,BORDER),
@@ -484,10 +485,12 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
                    ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0)])
         leg_items.append([swatch,
             Paragraph(CAL_TYPE_LABELS[t], mk_style(f"leg_{t}", fontSize=7.5, textColor=MUTED, leading=10))])
-    leg_tbl = Table([leg_items], colWidths=[18*mm]*len(leg_items))
+    # 5 items — give each enough room for "Message/Chat" (the longest)
+    leg_col_w = W / len(leg_items)
+    leg_tbl = Table([leg_items], colWidths=[leg_col_w]*len(leg_items))
     leg_tbl.setStyle(TableStyle([
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
-        ("LEFTPADDING",(0,0),(-1,-1),2),("RIGHTPADDING",(0,0),(-1,-1),6),
+        ("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),4),
     ]))
     story.append(leg_tbl)
     story.append(Spacer(1, 8))
@@ -1072,6 +1075,7 @@ def build_pdf(data):
             "All uploaded images organised by evidence type. Reference codes link back to the timeline and evidence index.",
             mk_style("gi", fontSize=9, textColor=MUTED, leading=13, spaceAfter=10)))
 
+        first_section = True
         for etype in TYPE_ORDER:
             images = images_by_type[etype]
             if not images:
@@ -1079,6 +1083,11 @@ def build_pdf(data):
 
             mi = TYPE_META.get(etype, {"label": etype, "accent": MUTED, "bg": LT_BG, "icon": "•"})
             acc = mi["accent"]
+
+            # All sections except the first start on a new page
+            if not first_section:
+                story.append(PageBreak())
+            first_section = False
 
             # Coloured type header bar
             type_hdr = Table([[Paragraph(
