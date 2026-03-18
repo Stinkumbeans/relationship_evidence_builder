@@ -48,7 +48,7 @@ INFO    = colors.HexColor("#4A7FA5")
 TYPE_META = {
     "flight":   {"label":"Flight / Travel",        "prefix":"FLT","accent":colors.HexColor("#4A7FA5"),"bg":colors.HexColor("#EEF4FA"),"icon":"✈"},
     "airbnb":   {"label":"Accommodation",           "prefix":"ACM","accent":colors.HexColor("#C5503A"),"bg":colors.HexColor("#FDF1EF"),"icon":"⌂"},
-    "transfer": {"label":"Bank Transfer",           "prefix":"TRF","accent":colors.HexColor("#2E7D5E"),"bg":colors.HexColor("#EEF8F3"),"icon":"$"},
+    "transfer": {"label":"Bank Transfer",           "prefix":"TRF","accent":colors.HexColor("#2E7D5E"),"bg":colors.HexColor("#EEF8F3"),"icon":""},
     "chat":     {"label":"Chat Highlight",          "prefix":"MSG","accent":colors.HexColor("#7B5EA7"),"bg":colors.HexColor("#F4F0FA"),"icon":"✉"},
     "photo":    {"label":"Photo / Memory",          "prefix":"PHT","accent":colors.HexColor("#B07828"),"bg":colors.HexColor("#FBF5EA"),"icon":"◉"},
     "video":    {"label":"Video Call",              "prefix":"VID","accent":colors.HexColor("#1E7B8A"),"bg":colors.HexColor("#EAF6F8"),"icon":"▶"},
@@ -918,7 +918,32 @@ def build_pdf(data):
                 elif a.get('isPDF') and a.get('b64'):
                     thumb_items.append(('pdf', a))
         thumb_items = thumb_items[:2]
-        has_thumbs = bool(thumb_items)
+
+        # For transfers with attachments, build an info box instead of thumbnails
+        transfer_info_box = None
+        if etype == "transfer" and atts:
+            amt = entry.get("amount","")
+            ref = entry.get("ref","")
+            amt_str = f"£{amt}" if amt else "—"
+            ref_str = f"Ref: {ref}" if ref else ""
+            transfer_info_box = Table([
+                [Paragraph(amt_str, mk_style(f"tamt{code}",
+                    fontName="Helvetica-Bold", fontSize=16,
+                    textColor=acc, leading=20, alignment=TA_CENTER))],
+                [Paragraph(ref_str, mk_style(f"tref{code}",
+                    fontSize=7.5, textColor=MUTED, leading=10, alignment=TA_CENTER))],
+                [Paragraph("* see gallery", mk_style(f"tgal{code}",
+                    fontName="Helvetica-Oblique", fontSize=7,
+                    textColor=FAINT, leading=9, alignment=TA_CENTER))],
+            ], colWidths=[46*mm])
+            transfer_info_box.setStyle(TableStyle([
+                ("BACKGROUND",(0,0),(-1,-1), bg),
+                ("BOX",(0,0),(-1,-1), 0.5, acc),
+                ("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),4),
+                ("TOPPADDING",(0,0),(-1,-1),8),("BOTTOMPADDING",(0,0),(-1,-1),6),
+                ("ALIGN",(0,0),(-1,-1),"CENTER"),
+            ]))
+        has_thumbs = bool(thumb_items) or bool(transfer_info_box)
 
         # Card inner width (W minus outer card left+right padding of 8+6)
         INNER = W - 14
@@ -1014,6 +1039,9 @@ def build_pdf(data):
                 ("BOTTOMPADDING",(0,0),(-1,-1),0),
             ]))
             card_content = [[text_tbl, thumb_tbl]]
+            card_widths  = [TEXT_COL, THUMB_COL]
+        elif transfer_info_box:
+            card_content = [[text_tbl, transfer_info_box]]
             card_widths  = [TEXT_COL, THUMB_COL]
         else:
             card_content = [[text_tbl]]
@@ -1197,34 +1225,6 @@ def build_pdf(data):
     idx_tbl=Table(idx_rows,colWidths=[W*0.12,W*0.14,W*0.14,W*0.27,W*0.33])
     idx_tbl.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,0),DARK),("ROWBACKGROUNDS",(0,1),(-1,-1),[LT_BG,WHITE]),("GRID",(0,0),(-1,-1),0.5,BORDER),("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),("TOPPADDING",(0,0),(-1,-1),6),("BOTTOMPADDING",(0,0),(-1,-1),6),("VALIGN",(0,0),(-1,-1),"TOP")]))
     story.append(idx_tbl)
-
-    # ── ATTACHMENT CHECKLIST ──────────────────────────────────
-    story.append(PageBreak())
-    story.append(section_header("ATTACHMENT CHECKLIST"))
-    story.append(Spacer(1,6))
-    story.append(Paragraph("Tick each box when the file has been gathered, renamed to match the reference code, and added to the submission folder.",mk_style("ci",fontSize=9,textColor=MUTED,leading=13,spaceAfter=12)))
-
-    for tid,mi in TYPE_META.items():
-        if tid=="gap": continue
-        type_entries=[e for e in entries if e.get("type")==tid]
-        if not type_entries: continue
-        acc=mi["accent"]
-        hdr=Table([[Paragraph(f"{mi['icon']}  {mi['label'].upper()}",mk_style(f"clh{tid}",fontName="Helvetica-Bold",fontSize=8,textColor=WHITE,charSpace=1,leading=11))]],colWidths=[W])
-        hdr.setStyle(TableStyle([("BACKGROUND",(0,0),(-1,-1),acc),("LEFTPADDING",(0,0),(-1,-1),10),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5)]))
-        story.append(hdr)
-        cl_rows=[[Paragraph("<b>☐</b>",mk_style("cb",fontName="Helvetica-Bold",fontSize=10,textColor=acc)),Paragraph("<b>Ref</b>",mk_style("cr",fontName="Helvetica-Bold",fontSize=8,textColor=MUTED)),Paragraph("<b>Entry</b>",mk_style("ce",fontName="Helvetica-Bold",fontSize=8,textColor=MUTED)),Paragraph("<b>File to attach</b>",mk_style("cf",fontName="Helvetica-Bold",fontSize=8,textColor=MUTED)),Paragraph("<b>Format</b>",mk_style("cfmt",fontName="Helvetica-Bold",fontSize=8,textColor=MUTED))]]
-        for entry in type_entries:
-            code=entry.get("refCode","???"); main=entry.get("main","") or "—"; atts=entry.get("attachments",[])
-            if atts:
-                for att in atts:
-                    fname=f"{code}_{att.get('desc','file').lower().replace(' ','-')}"
-                    cl_rows.append([Paragraph("☐",mk_style(f"cb2",fontSize=11,textColor=FAINT)),Paragraph(code,mk_style(f"crc{code}",fontName="Courier-Bold",fontSize=8.5,textColor=acc)),Paragraph((main[:40]+"…" if len(main)>40 else main),mk_style(f"cm{code}",fontSize=8.5,textColor=TEXT,leading=12)),Paragraph(fname,mk_style(f"cfn{code}",fontName="Courier",fontSize=7.5,textColor=MUTED,leading=11)),Paragraph(att.get("fmt","?"),mk_style(f"cff{code}",fontName="Helvetica-Bold",fontSize=8,textColor=acc))])
-            else:
-                cl_rows.append([Paragraph("☐",mk_style(f"cb3",fontSize=11,textColor=FAINT)),Paragraph(code,mk_style(f"crc2{code}",fontName="Courier-Bold",fontSize=8.5,textColor=acc)),Paragraph((main[:40]+"…" if len(main)>40 else main),mk_style(f"cm2{code}",fontSize=8.5,textColor=TEXT,leading=12)),Paragraph("(no file listed)",st["small_it"]),Paragraph("—",st["small"])])
-        cl_tbl=Table(cl_rows,colWidths=[W*0.05,W*0.11,W*0.28,W*0.42,W*0.14])
-        cl_tbl.setStyle(TableStyle([("ROWBACKGROUNDS",(0,0),(-1,-1),[LT_BG,WHITE]),("GRID",(0,0),(-1,-1),0.4,BORDER),("LEFTPADDING",(0,0),(-1,-1),7),("RIGHTPADDING",(0,0),(-1,-1),7),("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),("VALIGN",(0,0),(-1,-1),"MIDDLE"),("BACKGROUND",(0,0),(-1,0),colors.HexColor("#F0EDE8"))]))
-        story.append(cl_tbl)
-        story.append(Spacer(1,8))
 
     # ── FINAL DECLARATION ─────────────────────────────────────
     story.append(Spacer(1,6))
