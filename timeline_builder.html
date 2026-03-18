@@ -1200,6 +1200,7 @@ function collectData(){
     wit_summary:g('wit_summary'),
     entries: collectEntries(),
     contactData: calSerialise(),
+    messageData: calSerialiseMessages(),
   };
 }
 function g(id){return(document.getElementById(id)?.value||'').trim();}
@@ -1294,7 +1295,7 @@ function saveState(){
     });
   });
 
-  const state={version:1,savedAt:new Date().toISOString(),fields,rawEntries,entryCounter:ec,contactData:calSerialise()};
+  const state={version:1,savedAt:new Date().toISOString(),fields,rawEntries,entryCounter:ec,contactData:calSerialise(),messageData:calSerialiseMessages()};
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
@@ -1383,6 +1384,7 @@ function loadState(event){
 
       updTotal();liveUpdate();runWeaknessCheck();
       if(state.contactData) calDeserialise(state.contactData);
+      if(state.messageData) calDeserialiseMessages(state.messageData);
       showStatus(`✓ Save file loaded — ${Object.values(state.rawEntries).flat().length} entries restored.`,true);
     }catch(err){
       showStatus('Could not load save file — make sure you selected the correct .json file.',false);
@@ -1530,7 +1532,7 @@ async function downloadZip(){
   });
 
   // ── Save file ─────────────────────────────────────────────────
-  const state={version:1,savedAt:new Date().toISOString(),fields:{},rawEntries:{},entryCounter:ec,contactData:calSerialise()};
+  const state={version:1,savedAt:new Date().toISOString(),fields:{},rawEntries:{},entryCounter:ec,contactData:calSerialise(),messageData:calSerialiseMessages()};
   const FIELDS=['sponsor_name','applicant_name','rel_start','applicant_country','app_ref',
     'rel_status','cohabited','sponsor_prev','applicant_prev','fin_exemption','fin_summary',
     's_how_met','s_develop','s_maintain','s_future','s_gaps','s_other',
@@ -1622,6 +1624,7 @@ const CAL_MONTHS=['January','February','March','April','May','June','July','Augu
 const CAL_DAYS_SHORT=['Su','Mo','Tu','We','Th','Fr','Sa'];
 let _calActiveTab='import';
 let _calImportLog=[];
+let messageData={};  // { 'YYYY-MM': count } — raw message count per month
 
 function calSerialise(){
   const out={};
@@ -1632,6 +1635,15 @@ function calDeserialise(raw){
   contactData={};
   Object.entries(raw||{}).forEach(([k,v])=>contactData[k]=new Set(v));
   calUpdateTotal();
+}
+function calSerialiseMessages(){ return Object.assign({}, messageData); }
+function calDeserialiseMessages(raw){ messageData = Object.assign({}, raw||{}); }
+
+function calIncrementMessages(ds, n){
+  // ds = YYYY-MM-DD, n = number of messages on that line (usually 1)
+  if(ds > new Date().toISOString().slice(0,10)) return;
+  const mon = ds.slice(0,7);
+  messageData[mon] = (messageData[mon]||0) + n;
 }
 
 function showCalTab(id){
@@ -1657,6 +1669,8 @@ function calRenderActive(){
 }
 
 function calAddDay(ds, type){
+  // Reject dates in the future — parser error safeguard
+  if(ds > new Date().toISOString().slice(0,10)) return;
   if(!contactData[ds]) contactData[ds]=new Set();
   contactData[ds].add(type);
   calUpdateTotal();
@@ -1753,6 +1767,10 @@ function calParseFile(file,platform){
     else if(platform==='discord') added=calParseDiscord(text);
     else if(platform==='calllog') added=calParseCallLog(text);
     else added=calParseAuto(text);
+
+    // If 0 returned from whatsapp it may be awaiting format choice — don't overwrite the prompt
+    if(added===0 && platform==='whatsapp') return;
+
     _calImportLog.push({platform,filename:file.name,added,time:new Date().toLocaleTimeString()});
     const res=document.getElementById('cal_import_result');
     if(res) res.textContent=added>0?`✓ ${added} contact days imported`:'No dates found — check format matches platform';
@@ -1762,26 +1780,92 @@ function calParseFile(file,platform){
   };
   reader.readAsText(file);
 }
-function calParseWhatsApp(text){
-  const dayTypes={};
-  for(const line of text.split('\n')){
-    // Format: M/DD/YY or MM/DD/YY — month first (US/WhatsApp default)
+function detectWhatsAppDateFormat(text){
+  // Scan up to 500 lines to find an unambiguous date
+  const lines=text.split('\n').slice(0,500);
+  for(const line of lines){
     const m=line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})[,\s]/);
     if(!m) continue;
-    const mon=m[1], day=m[2], yr=m[3].length===2?'20'+m[3]:m[3];
+    const a=parseInt(m[1]), b=parseInt(m[2]);
+    if(a>12) return 'dmy';  // first number can't be a month → DD/MM/YY
+    if(b>12) return 'mdy';  // second number can't be a month → MM/DD/YY
+  }
+  return 'ambiguous'; // every date had both parts ≤ 12
+}
+
+function calParseWhatsApp(text, forceFmt){
+  const fmt = forceFmt || detectWhatsAppDateFormat(text);
+
+  if(fmt==='ambiguous'){
+    // Show a small inline prompt and re-run when answered
+    const container=document.getElementById('cal_import_result');
+    if(container){
+      container.innerHTML=`
+        <div style="background:var(--gbg);border:1px solid rgba(160,120,48,.3);border-radius:4px;padding:10px 12px;margin-top:8px;text-align:left;">
+          <div style="font-size:12px;font-weight:600;color:var(--gold);margin-bottom:8px;">📅 Date format unclear — all dates have day and month ≤ 12</div>
+          <div style="font-size:11px;color:var(--mut);margin-bottom:10px;">Which format does your WhatsApp use?<br>
+            <span style="font-family:monospace">Example line: ${escFirstLine(text)}</span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button onclick="calRerunWhatsApp(${JSON.stringify(text)},'mdy')"
+              style="padding:6px 14px;background:var(--text);color:#F5F0E8;border:none;border-radius:3px;font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;">
+              MM/DD/YY &nbsp;<span style="opacity:.6;font-size:10px">(e.g. 6/03/22 = June 3)</span>
+            </button>
+            <button onclick="calRerunWhatsApp(${JSON.stringify(text)},'dmy')"
+              style="padding:6px 14px;background:var(--text);color:#F5F0E8;border:none;border-radius:3px;font-family:inherit;font-size:12px;font-weight:500;cursor:pointer;">
+              DD/MM/YY &nbsp;<span style="opacity:.6;font-size:10px">(e.g. 6/03/22 = 6th March)</span>
+            </button>
+          </div>
+        </div>`;
+    }
+    return 0; // nothing added yet — wait for user choice
+  }
+
+  const dayTypes={};
+  for(const line of text.split('\n')){
+    const m=line.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})[,\s]/);
+    if(!m) continue;
+    const yr=m[3].length===2?'20'+m[3]:m[3];
+    const mon = fmt==='mdy' ? m[1] : m[2];
+    const day = fmt==='mdy' ? m[2] : m[1];
     const ds=`${yr}-${mon.padStart(2,'0')}-${day.padStart(2,'0')}`;
     if(isNaN(new Date(ds))) continue;
     if(!dayTypes[ds]) dayTypes[ds]=new Set();
     const lower=line.toLowerCase();
     if(lower.includes('video call')||lower.includes('video calling')) dayTypes[ds].add('video');
     else if(lower.includes('voice call')||lower.includes('audio call')||lower.includes('missed voice')||lower.includes('missed call')||lower.includes('outgoing call')||lower.includes('incoming call')) dayTypes[ds].add('call');
-    else dayTypes[ds].add('sms');
+    else {
+      dayTypes[ds].add('sms');
+      calIncrementMessages(ds, 1); // count each message line
+    }
   }
   let count=0;
   Object.entries(dayTypes).forEach(([ds,types])=>{
     types.forEach(t=>calAddDay(ds,t)); count++;
   });
   return count;
+}
+
+function escFirstLine(text){
+  // Return the first parseable line, HTML-escaped, truncated
+  for(const line of text.split('\n').slice(0,20)){
+    if(/^\d{1,2}\/\d{1,2}\/\d{2}/.test(line))
+      return line.slice(0,40).replace(/&/g,'&amp;').replace(/</g,'&lt;')+'…';
+  }
+  return '(no example found)';
+}
+
+let _pendingWhatsAppText = null;
+function calRerunWhatsApp(text, fmt){
+  // Clear any previously imported WA data before re-running
+  // (remove dates that were added with wrong format — safest is to re-import cleanly)
+  const result=document.getElementById('cal_import_result');
+  if(result) result.innerHTML='';
+  const added=calParseWhatsApp(text, fmt);
+  _calImportLog.push({platform:'whatsapp ('+fmt+')',filename:'re-parsed',added,time:new Date().toLocaleTimeString()});
+  showStatus(`✓ Imported ${added} days (${fmt==='mdy'?'MM/DD/YY':'DD/MM/YY'} format)`,true);
+  calUpdateTotal();
+  calRenderImportSummary();
 }
 function calParseSignal(text){
   const dayTypes={};
@@ -1793,7 +1877,10 @@ function calParseSignal(text){
     if(!dayTypes[ds]) dayTypes[ds]=new Set();
     const lower=line.toLowerCase();
     if(lower.includes('outgoing call')||lower.includes('incoming call')||lower.includes('missed call')) dayTypes[ds].add('call');
-    else dayTypes[ds].add('sms');
+    else {
+      dayTypes[ds].add('sms');
+      calIncrementMessages(ds, 1);
+    }
   }
   let count=0;
   Object.entries(dayTypes).forEach(([ds,types])=>{
@@ -1809,6 +1896,7 @@ function calParseDiscord(text){
     const ds=`${m[3]}-${m[1].padStart(2,'0')}-${m[2].padStart(2,'0')}`;
     if(isNaN(new Date(ds))) continue;
     if(!dayTypes[ds]) dayTypes[ds]=new Set(['sms']);
+    calIncrementMessages(ds, 1);
   }
   let count=0;
   Object.entries(dayTypes).forEach(([ds,types])=>{

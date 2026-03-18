@@ -419,7 +419,7 @@ def draw_heatmap(contact_data, year):
 
     return dr
 
-def build_communication_section(story, contact_data_raw, W, st, section_header, hr):
+def build_communication_section(story, contact_data_raw, W, st, section_header, hr, message_data=None):
     """Append the Communication Record section to story."""
     if not contact_data_raw:
         return
@@ -452,6 +452,8 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
     except Exception:
         date_range = f"{dates[0]} — {dates[-1]}"
 
+    total_messages = sum((message_data or {}).values()) if message_data else counts['sms']
+
     stat_data = [
         [Paragraph("<b>Total days</b>",    mk_style("cs1", fontSize=8, textColor=MUTED, leading=11)),
          Paragraph("<b>Date range</b>",    mk_style("cs2", fontSize=8, textColor=MUTED, leading=11)),
@@ -461,7 +463,7 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
         [Paragraph(str(total),             mk_style("cv1", fontName="Helvetica-Bold", fontSize=14, textColor=DARK, leading=18)),
          Paragraph(date_range,             mk_style("cv2", fontName="Helvetica-Bold", fontSize=9,  textColor=DARK, leading=13)),
          Paragraph(mc_label,               mk_style("cv3", fontName="Helvetica-Bold", fontSize=10, textColor=GOLD, leading=14)),
-         Paragraph(str(counts['sms']),     mk_style("cv4", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['sms'],      leading=18)),
+         Paragraph(str(total_messages),    mk_style("cv4", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['sms'],      leading=18)),
          Paragraph(str(counts['inperson']),mk_style("cv5", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['inperson'], leading=18))],
     ]
     stat_widths = [W*0.14, W*0.26, W*0.20, W*0.20, W*0.20]
@@ -538,10 +540,12 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
         v = by_month[mon]
         y2, m2 = mon.split('-')
         label = f"{CAL_MONTHS[int(m2)-1]} {y2}"
+        # Use raw message count if available, otherwise fall back to day count
+        msg_count = (message_data or {}).get(mon, v.get('sms', 0))
         tbl_data.append([
             Paragraph(label,               mk_style(f"ml{mon}", fontSize=8, textColor=TEXT, leading=11)),
             Paragraph(str(v['total']),     mk_style(f"mt{mon}", fontName="Helvetica-Bold", fontSize=8, textColor=DARK, leading=11)),
-            Paragraph(str(v.get('sms',0)), mk_style(f"ms{mon}", fontSize=8, textColor=CAL_TYPE_COLOURS['sms'],      leading=11)),
+            Paragraph(str(msg_count),      mk_style(f"ms{mon}", fontSize=8, textColor=CAL_TYPE_COLOURS['sms'],      leading=11)),
             Paragraph(str(v.get('inperson',0)), mk_style(f"mi{mon}", fontSize=8, textColor=CAL_TYPE_COLOURS['inperson'], leading=11)),
         ])
 
@@ -1156,7 +1160,8 @@ def build_pdf(data):
 
     # ── COMMUNICATION RECORD ─────────────────────────────────
     contact_data_raw = data.get("contactData", {})
-    build_communication_section(story, contact_data_raw, W, st, section_header, hr)
+    message_data_raw = data.get("messageData", {})
+    build_communication_section(story, contact_data_raw, W, st, section_header, hr, message_data_raw)
 
     # ── EVIDENCE INDEX ────────────────────────────────────────
     story.append(PageBreak())
