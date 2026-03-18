@@ -352,7 +352,7 @@ CAL_TYPE_COLOURS = {
     'mixed':    colors.HexColor('#2E7D5E'),
 }
 CAL_TYPE_LABELS = {
-    'video':'Video Call','sms':'Message/Chat',
+    'video':'Video Call','sms':'Message&#8209;Chat',
     'call':'Voice Call','inperson':'In Person','mixed':'Mixed',
 }
 CAL_EMPTY = colors.HexColor('#EEECE8')
@@ -425,6 +425,9 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
         return
 
     contact_data = {k: set(v) for k, v in contact_data_raw.items()}
+    # Strip any dates beyond today — parser errors can produce future dates
+    today_str = date_cls.today().isoformat()
+    contact_data = {k: v for k, v in contact_data.items() if k <= today_str}
     dates = sorted(contact_data.keys())
     if not dates:
         return
