@@ -1637,7 +1637,12 @@ function calDeserialise(raw){
   calUpdateTotal();
 }
 function calSerialiseMessages(){ return Object.assign({}, messageData); }
-function calDeserialiseMessages(raw){ messageData = Object.assign({}, raw||{}); }
+function calDeserialiseMessages(raw){
+  // Only reset if there's actual data to restore — don't wipe in-session imports
+  if(raw && Object.keys(raw).length > 0){
+    messageData = Object.assign({}, raw);
+  }
+}
 
 function calIncrementMessages(ds, n){
   // ds = YYYY-MM-DD, n = number of messages on that line (usually 1)

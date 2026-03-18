@@ -517,11 +517,13 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
         story.append(Spacer(1, 6))
 
     # ── Monthly summary table ─────────────────────────────────
-    story.append(Spacer(1, 6))
-    story.append(hr(before=4, after=8))
-    story.append(Paragraph("MONTHLY CONTACT SUMMARY",
-        mk_style("cal_mhdr", fontName="Helvetica-Bold", fontSize=7.5,
-                 textColor=MUTED, charSpace=2, leading=11, spaceAfter=6)))
+    story.append(PageBreak())
+    story.append(section_header("COMMUNICATION RECORD — MONTHLY SUMMARY"))
+    story.append(Spacer(1, 8))
+    story.append(Paragraph(
+        "Message counts are derived from exported chat logs. "
+        "Each row reflects the number of days with contact and the total messages sent that month.",
+        mk_style("mon_intro", fontSize=8.5, textColor=MUTED, leading=12, spaceAfter=10)))
 
     by_month = defaultdict(lambda: defaultdict(int))
     for ds, types in contact_data.items():
