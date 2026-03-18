@@ -966,73 +966,126 @@ def build_pdf(data):
         story.append(Spacer(1,3))
 
     # ── IMAGE GALLERY ─────────────────────────────────────────
-    all_images = []
+    # Collect images grouped by entry type, preserving type order
+    TYPE_ORDER = ["flight","airbnb","transfer","photo","gap"]
+    images_by_type = {t:[] for t in TYPE_ORDER}
     for entry in entries:
+        etype = entry.get("type","")
+        if etype not in images_by_type:
+            continue
         for att in entry.get("attachments",[]):
             if att.get("isImage") and att.get("b64"):
-                all_images.append({"att":att,"refCode":entry.get("refCode","???"),"entry_main":entry.get("main","")})
+                images_by_type[etype].append({
+                    "att": att,
+                    "refCode": entry.get("refCode","???"),
+                    "entry_main": entry.get("main",""),
+                })
 
-    if all_images:
+    has_any_images = any(images_by_type[t] for t in TYPE_ORDER)
+
+    def make_gallery_img(b64, max_w_mm, max_h_mm):
+        try:
+            raw = b64_to_bytes(b64)
+            buf = io.BytesIO(raw)
+            pil = PILImage.open(buf)
+            pil = fix_orientation(pil)
+            if pil.mode not in ('RGB','L'):
+                pil = pil.convert('RGB')
+            w_px, h_px = pil.size
+            dpi = 96
+            max_w_px = max_w_mm / 25.4 * dpi
+            max_h_px = max_h_mm / 25.4 * dpi
+            scale = min(max_w_px / w_px, max_h_px / h_px, 1.0)
+            out_w = (w_px * scale / dpi) * 25.4 * mm
+            out_h = (h_px * scale / dpi) * 25.4 * mm
+            img_buf = io.BytesIO()
+            pil.save(img_buf, format='JPEG', quality=88)
+            img_buf.seek(0)
+            return RLImage(img_buf, width=out_w, height=out_h)
+        except Exception as e:
+            print(f"[gallery img error] {e}")
+            return None
+
+    if has_any_images:
         story.append(PageBreak())
-        story.append(section_header("IMAGE GALLERY"))
-        story.append(Spacer(1,8))
+        story.append(section_header("ATTACHMENT GALLERY"))
+        story.append(Spacer(1,6))
         story.append(Paragraph(
-            "All uploaded images in reference code order. Each image is scaled to fit the page.",
-            mk_style("gi",fontSize=9,textColor=MUTED,leading=13,spaceAfter=10)))
+            "All uploaded images organised by evidence type. Reference codes link back to the timeline and evidence index.",
+            mk_style("gi", fontSize=9, textColor=MUTED, leading=13, spaceAfter=10)))
 
-        # Show 2 images per row, capped at half page width each
-        col_w = (W - 10*mm) / 2
+        for etype in TYPE_ORDER:
+            images = images_by_type[etype]
+            if not images:
+                continue
 
-        def make_gallery_img(b64, max_w_mm, max_h_mm):
-            try:
-                raw = b64_to_bytes(b64)
-                buf = io.BytesIO(raw)
-                pil = PILImage.open(buf)
-                pil = fix_orientation(pil)
-                if pil.mode not in ('RGB','L'):
-                    pil = pil.convert('RGB')
-                w_px, h_px = pil.size
-                # Convert max dimensions from mm to pixels at 96dpi for scaling
-                dpi = 96
-                max_w_px = max_w_mm / 25.4 * dpi
-                max_h_px = max_h_mm / 25.4 * dpi
-                scale = min(max_w_px / w_px, max_h_px / h_px, 1.0)
-                # Final dimensions in ReportLab points
-                out_w = (w_px * scale / dpi) * 25.4 * mm
-                out_h = (h_px * scale / dpi) * 25.4 * mm
-                img_buf = io.BytesIO()
-                pil.save(img_buf, format='JPEG', quality=88)
-                img_buf.seek(0)
-                return RLImage(img_buf, width=out_w, height=out_h)
-            except Exception as e:
-                print(f"[gallery img error] {e}")
-                return None
+            mi = TYPE_META.get(etype, {"label": etype, "accent": MUTED, "bg": LT_BG, "icon": "•"})
+            acc = mi["accent"]
 
-        # Group into pairs, placing anchors before each pair
-        for i in range(0, len(all_images), 2):
-            pair = all_images[i:i+2]
-            # Place anchor before this pair (keyed to first item)
-            story.append(AnchorFlowable(f"img_{pair[0]['att']['id']}"))
-
-            cells = []
-            for item in pair:
-                att = item["att"]; code = item["refCode"]
-                lbl = Paragraph(
-                    f"<b>{code}</b>  {att.get('desc','')}",
-                    mk_style(f"gl{att['id']}",fontSize=8,textColor=GOLD,leading=11,spaceAfter=3))
-                img = make_gallery_img(att["b64"], max_w_mm=(col_w/mm)-4, max_h_mm=70)
-                cell_content = [lbl, img] if img else [lbl]
-                cells.append(cell_content)
-            while len(cells) < 2:
-                cells.append([Spacer(1,1)])
-            tbl = Table([[cells[0], cells[1]]], colWidths=[col_w, col_w])
-            tbl.setStyle(TableStyle([
-                ("VALIGN",(0,0),(-1,-1),"TOP"),
-                ("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),4),
-                ("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),8),
+            # Coloured type header bar
+            type_hdr = Table([[Paragraph(
+                f"{mi['icon']}  {mi['label'].upper()}",
+                mk_style(f"gh_{etype}", fontName="Helvetica-Bold", fontSize=8,
+                         textColor=WHITE, charSpace=1, leading=11)
+            )]], colWidths=[W])
+            type_hdr.setStyle(TableStyle([
+                ("BACKGROUND",(0,0),(-1,-1), acc),
+                ("LEFTPADDING",(0,0),(-1,-1),12),
+                ("TOPPADDING",(0,0),(-1,-1),6),
+                ("BOTTOMPADDING",(0,0),(-1,-1),6),
             ]))
-            story.append(tbl)
-            story.append(Spacer(1,4))
+            story.append(type_hdr)
+            story.append(Spacer(1, 6))
+
+            if etype == "transfer":
+                # ── Bank transfers: 1-per-row, full width, horizontal strips ──
+                for item in images:
+                    att = item["att"]
+                    code = item["refCode"]
+                    story.append(AnchorFlowable(f"img_{att['id']}"))
+                    lbl = Paragraph(
+                        f"<b>{code}</b>  {att.get('desc','')}",
+                        mk_style(f"gl_{att['id']}", fontSize=8, textColor=acc,
+                                 leading=11, spaceAfter=3))
+                    # Full content width, height capped at 60mm so strips don't overflow
+                    img = make_gallery_img(att["b64"], max_w_mm=W/mm, max_h_mm=60)
+                    if img:
+                        story.append(lbl)
+                        story.append(img)
+                    else:
+                        story.append(lbl)
+                    story.append(Spacer(1, 8))
+            else:
+                # ── All other types: 2-per-row ──────────────────────────────
+                col_w = (W - 10*mm) / 2
+                for i in range(0, len(images), 2):
+                    pair = images[i:i+2]
+                    story.append(AnchorFlowable(f"img_{pair[0]['att']['id']}"))
+                    cells = []
+                    for item in pair:
+                        att = item["att"]
+                        code = item["refCode"]
+                        lbl = Paragraph(
+                            f"<b>{code}</b>  {att.get('desc','')}",
+                            mk_style(f"gl_{att['id']}", fontSize=8, textColor=acc,
+                                     leading=11, spaceAfter=3))
+                        img = make_gallery_img(att["b64"],
+                                               max_w_mm=(col_w/mm)-4,
+                                               max_h_mm=70)
+                        cells.append([lbl, img] if img else [lbl])
+                    while len(cells) < 2:
+                        cells.append([Spacer(1,1)])
+                    tbl = Table([[cells[0], cells[1]]], colWidths=[col_w, col_w])
+                    tbl.setStyle(TableStyle([
+                        ("VALIGN",(0,0),(-1,-1),"TOP"),
+                        ("LEFTPADDING",(0,0),(-1,-1),4),("RIGHTPADDING",(0,0),(-1,-1),4),
+                        ("TOPPADDING",(0,0),(-1,-1),4),("BOTTOMPADDING",(0,0),(-1,-1),8),
+                    ]))
+                    story.append(tbl)
+                    story.append(Spacer(1,4))
+
+            story.append(Spacer(1, 10))
+
     # ── COMMUNICATION RECORD ─────────────────────────────────
     contact_data_raw = data.get("contactData", {})
     build_communication_section(story, contact_data_raw, W, st, section_header, hr)
