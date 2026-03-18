@@ -453,21 +453,18 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
         date_range = f"{dates[0]} — {dates[-1]}"
 
     stat_data = [
-        [Paragraph("<b>Total days</b>",        mk_style("cs1", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Date range</b>",         mk_style("cs2", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Most frequent</b>",      mk_style("cs3", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Video calls</b>",         mk_style("cs4", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Messages</b>",            mk_style("cs5", fontSize=8, textColor=MUTED, leading=11)),
-         Paragraph("<b>Voice calls</b>",         mk_style("cs6", fontSize=8, textColor=MUTED, leading=11))],
-        [Paragraph(str(total),           mk_style("cv1", fontName="Helvetica-Bold", fontSize=14, textColor=DARK, leading=18)),
-         Paragraph(date_range,           mk_style("cv2", fontName="Helvetica-Bold", fontSize=9,  textColor=DARK, leading=13)),
-         Paragraph(mc_label,             mk_style("cv3", fontName="Helvetica-Bold", fontSize=10, textColor=GOLD, leading=14)),
-         Paragraph(str(counts['video']), mk_style("cv4", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['video'], leading=18)),
-         Paragraph(str(counts['sms']),   mk_style("cv5", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['sms'],   leading=18)),
-         Paragraph(str(counts['call']),  mk_style("cv6", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['call'],  leading=18))],
+        [Paragraph("<b>Total days</b>",    mk_style("cs1", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Date range</b>",    mk_style("cs2", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Most frequent</b>", mk_style("cs3", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>Messages</b>",      mk_style("cs4", fontSize=8, textColor=MUTED, leading=11)),
+         Paragraph("<b>In Person</b>",     mk_style("cs5", fontSize=8, textColor=MUTED, leading=11))],
+        [Paragraph(str(total),             mk_style("cv1", fontName="Helvetica-Bold", fontSize=14, textColor=DARK, leading=18)),
+         Paragraph(date_range,             mk_style("cv2", fontName="Helvetica-Bold", fontSize=9,  textColor=DARK, leading=13)),
+         Paragraph(mc_label,               mk_style("cv3", fontName="Helvetica-Bold", fontSize=10, textColor=GOLD, leading=14)),
+         Paragraph(str(counts['sms']),     mk_style("cv4", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['sms'],      leading=18)),
+         Paragraph(str(counts['inperson']),mk_style("cv5", fontName="Helvetica-Bold", fontSize=14, textColor=CAL_TYPE_COLOURS['inperson'], leading=18))],
     ]
-    # Unequal widths — date range and most frequent need more room
-    stat_widths = [W*0.12, W*0.22, W*0.18, W*0.16, W*0.16, W*0.16]
+    stat_widths = [W*0.14, W*0.26, W*0.20, W*0.20, W*0.20]
     stat_tbl = Table(stat_data, colWidths=stat_widths)
     stat_tbl.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(-1,-1), LT_BG),
@@ -478,7 +475,13 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
     ]))
     story.append(stat_tbl)
-    story.append(Spacer(1, 10))
+    story.append(Paragraph(
+        "Note: Video and voice call data is not reliably captured by standard chat export formats "
+        "(WhatsApp, Signal, Discord). The figures above reflect text-based contact days as recorded "
+        "in exported chat logs. Actual call frequency may be higher.",
+        mk_style("cal_disc", fontName="Helvetica-Oblique", fontSize=7.5, textColor=MUTED,
+                 leading=11, spaceBefore=5, spaceAfter=8)))
+    story.append(Spacer(1, 4))
 
     # ── Legend ───────────────────────────────────────────────
     leg_items = []
@@ -488,7 +491,6 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
                    ('TOPPADDING',(0,0),(-1,-1),0),('BOTTOMPADDING',(0,0),(-1,-1),0)])
         leg_items.append([swatch,
             Paragraph(CAL_TYPE_LABELS[t], mk_style(f"leg_{t}", fontSize=7.5, textColor=MUTED, leading=10))])
-    # 5 items — give each enough room for "Message/Chat" (the longest)
     leg_col_w = W / len(leg_items)
     leg_tbl = Table([leg_items], colWidths=[leg_col_w]*len(leg_items))
     leg_tbl.setStyle(TableStyle([
@@ -515,7 +517,7 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
     # ── Monthly summary table ─────────────────────────────────
     story.append(Spacer(1, 6))
     story.append(hr(before=4, after=8))
-    story.append(Paragraph("MONTHLY SUMMARY",
+    story.append(Paragraph("MONTHLY CONTACT SUMMARY",
         mk_style("cal_mhdr", fontName="Helvetica-Bold", fontSize=7.5,
                  textColor=MUTED, charSpace=2, leading=11, spaceAfter=6)))
 
@@ -527,33 +529,29 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
         by_month[mon]['total'] += 1
 
     tbl_data = [[
-        Paragraph("<b>Month</b>",     mk_style("mth0", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
-        Paragraph("<b>Total</b>",     mk_style("mth1", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
-        Paragraph("<b>Video</b>",     mk_style("mth2", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
-        Paragraph("<b>Chat</b>",      mk_style("mth3", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
-        Paragraph("<b>Voice</b>",     mk_style("mth4", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
-        Paragraph("<b>In Person</b>", mk_style("mth5", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+        Paragraph("<b>Month</b>",      mk_style("mth0", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+        Paragraph("<b>Contact days</b>",mk_style("mth1", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+        Paragraph("<b>Messages</b>",   mk_style("mth2", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
+        Paragraph("<b>In Person</b>",  mk_style("mth3", fontName="Helvetica-Bold", fontSize=7.5, textColor=WHITE, leading=10)),
     ]]
     for mon in sorted(by_month.keys()):
         v = by_month[mon]
         y2, m2 = mon.split('-')
-        label = f"{CAL_MONTHS[int(m2)-1][:3]} {y2}"
+        label = f"{CAL_MONTHS[int(m2)-1]} {y2}"
         tbl_data.append([
-            Paragraph(label,          mk_style(f"ml{mon}",  fontSize=8,   textColor=TEXT,  leading=11)),
-            Paragraph(str(v['total']),mk_style(f"mt{mon}",  fontName="Helvetica-Bold", fontSize=8, textColor=DARK,  leading=11)),
-            Paragraph(str(v.get('video',0)),    mk_style(f"mv{mon}",  fontSize=8, textColor=CAL_TYPE_COLOURS['video'],    leading=11)),
-            Paragraph(str(v.get('sms',0)),      mk_style(f"ms{mon}",  fontSize=8, textColor=CAL_TYPE_COLOURS['sms'],     leading=11)),
-            Paragraph(str(v.get('call',0)),     mk_style(f"mc{mon}",  fontSize=8, textColor=CAL_TYPE_COLOURS['call'],    leading=11)),
-            Paragraph(str(v.get('inperson',0)), mk_style(f"mi{mon}",  fontSize=8, textColor=CAL_TYPE_COLOURS['inperson'],leading=11)),
+            Paragraph(label,               mk_style(f"ml{mon}", fontSize=8, textColor=TEXT, leading=11)),
+            Paragraph(str(v['total']),     mk_style(f"mt{mon}", fontName="Helvetica-Bold", fontSize=8, textColor=DARK, leading=11)),
+            Paragraph(str(v.get('sms',0)), mk_style(f"ms{mon}", fontSize=8, textColor=CAL_TYPE_COLOURS['sms'],      leading=11)),
+            Paragraph(str(v.get('inperson',0)), mk_style(f"mi{mon}", fontSize=8, textColor=CAL_TYPE_COLOURS['inperson'], leading=11)),
         ])
 
-    col_ws = [W*0.22, W*0.13, W*0.13, W*0.13, W*0.13, W*0.26]
+    col_ws = [W*0.35, W*0.22, W*0.22, W*0.21]
     mon_tbl = Table(tbl_data, colWidths=col_ws)
     mon_tbl.setStyle(TableStyle([
         ("BACKGROUND",(0,0),(-1,0),DARK),
         ("ROWBACKGROUNDS",(0,1),(-1,-1),[LT_BG,WHITE]),
         ("GRID",(0,0),(-1,-1),0.4,BORDER),
-        ("LEFTPADDING",(0,0),(-1,-1),7),("RIGHTPADDING",(0,0),(-1,-1),7),
+        ("LEFTPADDING",(0,0),(-1,-1),8),("RIGHTPADDING",(0,0),(-1,-1),8),
         ("TOPPADDING",(0,0),(-1,-1),5),("BOTTOMPADDING",(0,0),(-1,-1),5),
         ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
         ("ALIGN",(1,0),(-1,-1),"CENTER"),
