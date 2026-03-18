@@ -909,13 +909,14 @@ def build_pdf(data):
 
         note = entry.get("note","") or entry.get("summary","") or entry.get("description","") or entry.get("gap_reason","") or ""
 
-        # ── Collect thumbnails (max 2) ────────────────────────
+        # ── Collect thumbnails (max 2) — skip for transfers ──
         thumb_items = []
-        for a in atts:
-            if a.get('isImage') and a.get('b64'):
-                thumb_items.append(('img', a))
-            elif a.get('isPDF') and a.get('b64'):
-                thumb_items.append(('pdf', a))
+        if etype != "transfer":
+            for a in atts:
+                if a.get('isImage') and a.get('b64'):
+                    thumb_items.append(('img', a))
+                elif a.get('isPDF') and a.get('b64'):
+                    thumb_items.append(('pdf', a))
         thumb_items = thumb_items[:2]
         has_thumbs = bool(thumb_items)
 
