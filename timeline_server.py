@@ -352,7 +352,7 @@ CAL_TYPE_COLOURS = {
     'mixed':    colors.HexColor('#2E7D5E'),
 }
 CAL_TYPE_LABELS = {
-    'video':'Video Call','sms':'Message&#8209;Chat',
+    'video':'Video Call','sms':'Messages',
     'call':'Voice Call','inperson':'In Person','mixed':'Mixed',
 }
 CAL_EMPTY = colors.HexColor('#EEECE8')
@@ -447,7 +447,7 @@ def build_communication_section(story, contact_data_raw, W, st, section_header, 
 
     try:
         d0 = date_cls.fromisoformat(dates[0])
-        d1 = date_cls.fromisoformat(dates[-1])
+        d1 = min(date_cls.fromisoformat(dates[-1]), date_cls.today())
         date_range = f"{d0.strftime('%-d %b %Y')} — {d1.strftime('%-d %b %Y')}"
     except Exception:
         date_range = f"{dates[0]} — {dates[-1]}"
