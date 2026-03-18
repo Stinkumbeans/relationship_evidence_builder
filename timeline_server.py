@@ -909,9 +909,9 @@ def build_pdf(data):
         thumb_items = thumb_items[:2]  # max 2
 
         has_thumbs = bool(thumb_items)
-        TEXT_W = W * 0.63 if has_thumbs else W
-        THUMB_W = W * 0.35  # right column when thumbs present
-        THUMB_EACH = (THUMB_W - 6*mm) / min(len(thumb_items), 2) if thumb_items else THUMB_W
+        THUMB_W = 52*mm  # fixed width right column — predictable, no rounding slop
+        TEXT_W = (W - THUMB_W) if has_thumbs else W
+        THUMB_EACH = (THUMB_W - 8*mm) / min(len(thumb_items), 2) if thumb_items else THUMB_W
 
         # ── Left: text content ────────────────────────────────
         ref_text = f'<link dest="{gallery_anchors[code]}">{code}</link>' if code in gallery_anchors else code
@@ -932,7 +932,7 @@ def build_pdf(data):
                      textColor=acc, charSpace=1, leading=10))
 
         hdr_tbl = Table([[ref_bg, date_p, type_p]],
-            colWidths=[20*mm, 38*mm, TEXT_W - 60*mm])
+            colWidths=[20*mm, 36*mm, TEXT_W - 58*mm])
         hdr_tbl.setStyle(TableStyle([
             ("VALIGN",(0,0),(-1,-1),"MIDDLE"),
             ("LEFTPADDING",(0,0),(0,0),0),
@@ -973,7 +973,7 @@ def build_pdf(data):
         if has_thumbs:
             thumb_cells = []
             for kind, a in thumb_items:
-                tw_mm = THUMB_EACH / mm - 6  # extra buffer to stay inside cell
+                tw_mm = THUMB_EACH / mm - 3
                 if kind == 'img':
                     thumb = image_thumbnail(a['b64'], max_w_mm=tw_mm, max_h_mm=28)
                 else:
